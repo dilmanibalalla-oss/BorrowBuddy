@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		000000000000000200000001 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000200000011 /* FirebaseAuth */; };
 		000000000000000200000003 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000200000013 /* FirebaseCore */; };
+		000000000000000200000005 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000200000015 /* FirebaseFirestore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 			files = (
 				000000000000000200000001 /* FirebaseAuth in Frameworks */,
 				000000000000000200000003 /* FirebaseCore in Frameworks */,
+				000000000000000200000005 /* FirebaseFirestore in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -70,6 +72,7 @@
 			packageProductDependencies = (
 				000000000000000200000011 /* FirebaseAuth */,
 				000000000000000200000013 /* FirebaseCore */,
+				000000000000000200000015 /* FirebaseFirestore */,
 			);
 			productName = BorrowBuddy;
 			productReference = 000000000000000000000120 /* BorrowBuddy.app */;
@@ -272,6 +275,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "BorrowBuddy uses Face ID for quick, secure sign-in.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BorrowBuddy uses your location to show tools near your shed.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -317,6 +321,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "BorrowBuddy uses Face ID for quick, secure sign-in.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BorrowBuddy uses your location to show tools near your shed.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -393,6 +398,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 000000000000000200000010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCore;
+		};
+		000000000000000200000015 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 000000000000000200000010 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

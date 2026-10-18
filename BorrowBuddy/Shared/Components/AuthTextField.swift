@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 enum AuthFieldKind {
     case name
@@ -22,6 +23,10 @@ struct AuthTextField: View {
     let placeholder: String
     @Binding var text: String
     var kind: AuthFieldKind = .plain
+    var autofocus = false
+
+    @State private var focusTrigger = 0
+    @State private var isFocused = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -29,52 +34,78 @@ struct AuthTextField: View {
                 .font(AppTheme.rounded(13, weight: .bold))
                 .foregroundStyle(AppTheme.blue)
 
-            field
-                .font(.system(size: 17))
-                .foregroundStyle(AppTheme.text)
-                .padding(.horizontal, 15)
-                .frame(height: 54)
-                .background(Color.white)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 11)
-                        .stroke(AppTheme.border, lineWidth: 1.5)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 11))
+            RespondableTextField(
+                text: $text,
+                placeholder: placeholder,
+                keyboardType: keyboardType,
+                textContentType: contentType,
+                isSecure: isSecure,
+                autocapitalization: autocapitalization,
+                autocorrection: autocorrection,
+                focusTrigger: focusTrigger
+            )
+            .frame(height: 22)
+            .padding(.horizontal, 15)
+            .frame(height: 54)
+            .background(Color.white)
+            .overlay {
+                RoundedRectangle(cornerRadius: 11)
+                    .stroke(isFocused ? AppTheme.blue : AppTheme.border, lineWidth: isFocused ? 2 : 1.5)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 11))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                focusTrigger += 1
+                isFocused = true
+            }
+        }
+        .onAppear {
+            guard autofocus else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                focusTrigger += 1
+                isFocused = true
+            }
         }
     }
 
-    @ViewBuilder
-    private var field: some View {
+    private var isSecure: Bool {
+        kind == .password || kind == .newPassword
+    }
+
+    private var keyboardType: UIKeyboardType {
         switch kind {
-        case .password, .newPassword:
-            SecureField(placeholder, text: $text)
-                .textContentType(kind == .newPassword ? .newPassword : .password)
-        case .email:
-            TextField(placeholder, text: $text)
-                .textContentType(.emailAddress)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                #if os(iOS)
-                .keyboardType(.emailAddress)
-                #endif
-        case .name:
-            TextField(placeholder, text: $text)
-                .textContentType(.name)
-                .textInputAutocapitalization(.words)
-        case .street:
-            TextField(placeholder, text: $text)
-                .textContentType(.streetAddressLine1)
-        case .unit:
-            TextField(placeholder, text: $text)
-                .textContentType(.streetAddressLine2)
-        case .city:
-            TextField(placeholder, text: $text)
-                .textContentType(.addressCity)
-        case .postal:
-            TextField(placeholder, text: $text)
-                .textContentType(.postalCode)
-        case .plain:
-            TextField(placeholder, text: $text)
+        case .email: return .emailAddress
+        case .postal: return .numbersAndPunctuation
+        default: return .default
+        }
+    }
+
+    private var contentType: UITextContentType? {
+        switch kind {
+        case .email: return .emailAddress
+        case .password: return .password
+        case .newPassword: return .newPassword
+        case .name: return .name
+        case .street: return .streetAddressLine1
+        case .unit: return .streetAddressLine2
+        case .city: return .addressCity
+        case .postal: return .postalCode
+        case .plain: return nil
+        }
+    }
+
+    private var autocapitalization: UITextAutocapitalizationType {
+        switch kind {
+        case .email, .password, .newPassword: return .none
+        case .name, .street, .city: return .words
+        default: return .sentences
+        }
+    }
+
+    private var autocorrection: UITextAutocorrectionType {
+        switch kind {
+        case .email, .password, .newPassword: return .no
+        default: return .default
         }
     }
 }

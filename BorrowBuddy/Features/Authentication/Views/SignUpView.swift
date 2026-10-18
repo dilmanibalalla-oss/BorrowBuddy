@@ -27,7 +27,8 @@ struct SignUpView: View {
                     title: "Full Name",
                     placeholder: "Jordan Lee",
                     text: $viewModel.fullName,
-                    kind: .name
+                    kind: .name,
+                    autofocus: true
                 )
                 .padding(.top, 28)
 
@@ -60,6 +61,10 @@ struct SignUpView: View {
                 ) {
                     Task {
                         if await viewModel.signUp(using: dependencies.authenticationService) {
+                            dependencies.pendingCredentials = StoredCredentials(
+                                email: viewModel.email,
+                                password: viewModel.password
+                            )
                             router.go(to: .signIn)
                         }
                     }

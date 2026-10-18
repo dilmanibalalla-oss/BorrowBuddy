@@ -23,7 +23,7 @@ struct LoginView: View {
                 .foregroundStyle(AppTheme.blue)
                 .padding(.top, 12)
 
-            Text("Log in with your email and password to open your shed.")
+            Text("Log in with your email and password, or unlock with Face ID.")
                 .font(.system(size: 16))
                 .foregroundStyle(AppTheme.secondaryText)
                 .padding(.top, 8)
@@ -32,7 +32,8 @@ struct LoginView: View {
                 title: "Email address",
                 placeholder: "you@email.com",
                 text: $viewModel.email,
-                kind: .email
+                kind: .email,
+                autofocus: true
             )
             .padding(.top, 28)
 
@@ -53,13 +54,28 @@ struct LoginView: View {
 
             Spacer()
 
+            if viewModel.canUseFaceID {
+                PrimaryButton(
+                    title: viewModel.isLoading ? "Unlocking..." : "Sign in with Face ID",
+                    systemImage: "faceid",
+                    enabled: !viewModel.isLoading
+                ) {
+                    Task {
+                        if await viewModel.signInWithFaceID(using: dependencies.authenticationService) {
+                            try? await dependencies.authenticationService.completeOnboarding()
+                            router.go(to: .home)
+                        }
+                    }
+                }
+                .padding(.bottom, 12)
+            }
+
             PrimaryButton(
                 title: viewModel.isLoading ? "Logging in..." : "Log in",
                 enabled: viewModel.canSubmit
             ) {
                 Task {
                     if await viewModel.signIn(using: dependencies.authenticationService) {
-                        // Existing members skip phone / Face ID / location and land on home.
                         try? await dependencies.authenticationService.completeOnboarding()
                         router.go(to: .home)
                     }

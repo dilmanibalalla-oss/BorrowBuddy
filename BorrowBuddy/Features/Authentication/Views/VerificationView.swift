@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct VerificationView: View {
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var dependencies: AppDependencies
     @StateObject private var viewModel = VerificationViewModel()
-    @FocusState private var isFocused: Bool
+    @State private var focusTrigger = 0
+    @State private var isFieldFocused = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -33,15 +35,20 @@ struct VerificationView: View {
                 .padding(.top, 8)
 
             ZStack {
-                TextField("", text: Binding(
-                    get: { viewModel.code },
-                    set: viewModel.updateCode
-                ))
-                .keyboardType(.numberPad)
-                .textContentType(.oneTimeCode)
-                .focused($isFocused)
-                .tint(.clear)
-                .opacity(0.01)
+                RespondableTextField(
+                    text: Binding(
+                        get: { viewModel.code },
+                        set: viewModel.updateCode
+                    ),
+                    placeholder: "",
+                    keyboardType: .numberPad,
+                    textContentType: .oneTimeCode,
+                    isInvisible: true,
+                    maxLength: 6,
+                    filterDigitsOnly: true,
+                    focusTrigger: focusTrigger
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityLabel("Six digit verification code")
 
                 HStack(spacing: 9) {
@@ -49,13 +56,15 @@ struct VerificationView: View {
                         digitBox(at: index)
                     }
                 }
+                .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
             .frame(height: 58)
             .padding(.top, 31)
             .contentShape(Rectangle())
             .onTapGesture {
-                isFocused = true
+                focusTrigger += 1
+                isFieldFocused = true
             }
 
             HStack(spacing: 5) {
@@ -69,6 +78,7 @@ struct VerificationView: View {
                             using: dependencies.authenticationService
                         ) {
                             dependencies.verificationID = verificationID
+                            focusTrigger += 1
                         }
                     }
                 } label: {
@@ -118,9 +128,13 @@ struct VerificationView: View {
         }
         .padding(.horizontal, 24)
         .frame(maxWidth: 560)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.background)
         .onAppear {
-            isFocused = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                focusTrigger += 1
+                isFieldFocused = true
+            }
         }
     }
 
@@ -128,7 +142,7 @@ struct VerificationView: View {
         let value = index < viewModel.code.count
             ? String(viewModel.code[viewModel.code.index(viewModel.code.startIndex, offsetBy: index)])
             : ""
-        let isActive = isFocused && !viewModel.isLoading && index == viewModel.code.count
+        let isActive = isFieldFocused && !viewModel.isLoading && index == viewModel.code.count
 
         return Text(value)
             .font(AppTheme.rounded(24, weight: .bold))
@@ -162,8 +176,6 @@ private struct OTPBlinkingCaret: View {
             .task(id: reduceMotion) {
                 isVisible = true
                 guard !reduceMotion else { return }
-                // This task is cancelled when focus moves, verification begins,
-                // all six digits are entered, or the screen disappears.
                 while !Task.isCancelled {
                     do { try await Task.sleep(for: .milliseconds(500)) }
                     catch { return }

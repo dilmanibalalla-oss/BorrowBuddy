@@ -10,17 +10,23 @@ import Foundation
 final class AppDependencies: ObservableObject {
     let authenticationService: AuthenticationService
     let notificationService: NotificationService
+    let userProfileService: UserProfileService
 
     @Published var verificationID: String?
     @Published var verificationPhoneNumber = ""
     @Published var isAuthenticated = false
 
+    /// Held after email signup so Face ID can store credentials for later unlock.
+    var pendingCredentials: StoredCredentials?
+
     init(
         authenticationService: AuthenticationService = FirebaseAuthenticationService(),
-        notificationService: NotificationService = LocalNotificationService()
+        notificationService: NotificationService = LocalNotificationService(),
+        userProfileService: UserProfileService = FirestoreUserProfileService()
     ) {
         self.authenticationService = authenticationService
         self.notificationService = notificationService
+        self.userProfileService = userProfileService
     }
 
     func observeAuthentication() {

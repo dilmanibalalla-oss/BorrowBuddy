@@ -3,17 +3,13 @@
 //  BorrowBuddy
 //
 
-import FirebaseCore
 import SwiftUI
 
 @main
 struct BorrowBuddyApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var router = AppRouter()
     @StateObject private var dependencies = AppDependencies()
-
-    init() {
-        FirebaseApp.configure()
-    }
 
     var body: some Scene {
         WindowGroup {
@@ -23,6 +19,13 @@ struct BorrowBuddyApp: App {
                 .preferredColorScheme(.light)
                 .onAppear {
                     dependencies.observeAuthentication()
+                }
+                .onOpenURL { url in
+                    _ = appDelegate.application(
+                        UIApplication.shared,
+                        open: url,
+                        options: [:]
+                    )
                 }
         }
     }

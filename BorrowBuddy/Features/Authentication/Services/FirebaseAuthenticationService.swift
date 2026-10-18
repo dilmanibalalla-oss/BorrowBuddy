@@ -75,6 +75,12 @@ final class FirebaseAuthenticationService: AuthenticationService {
     }
 
     func sendVerificationCode(to phoneNumber: String) async throws -> String {
+        // Hardcoded test number: skip Firebase SMS (avoids paid SMS / app verification).
+        if DevAuthFixtures.isTestPhone(phoneNumber) {
+            verificationID = DevAuthFixtures.localVerificationID
+            return DevAuthFixtures.localVerificationID
+        }
+
         let receivedVerificationID = try await PhoneAuthProvider.provider().verifyPhoneNumber(
             phoneNumber,
             uiDelegate: nil
@@ -86,6 +92,18 @@ final class FirebaseAuthenticationService: AuthenticationService {
     func verify(code: String, verificationID suppliedVerificationID: String?) async throws {
         guard let savedVerificationID = suppliedVerificationID ?? verificationID else {
             throw AuthenticationError.verificationNotStarted
+        }
+
+        // Local test OTP path — no Firebase phone credential required.
+        if DevAuthFixtures.isLocalVerificationID(savedVerificationID) {
+            guard code == DevAuthFixtures.testVerificationCode else {
+                throw AuthenticationError.invalidCode
+            }
+            guard Auth.auth().currentUser != nil else {
+                throw CommunityError.signInRequired
+            }
+            verificationID = nil
+            return
         }
 
         let credential = PhoneAuthProvider.provider().credential(

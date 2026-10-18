@@ -13,16 +13,7 @@ struct SplashView: View {
         VStack(spacing: 18) {
             Spacer()
 
-            ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(AppTheme.yellow)
-                    .frame(width: 108, height: 108)
-                    .shadow(color: AppTheme.yellow.opacity(0.35), radius: 18, y: 8)
-
-                Image(systemName: "wrench.and.screwdriver.fill")
-                    .font(.system(size: 44, weight: .bold))
-                    .foregroundStyle(AppTheme.blue)
-            }
+            BorrowBuddyLogo(size: 108)
 
             Text("BorrowBuddy")
                 .font(AppTheme.rounded(34, weight: .heavy))
