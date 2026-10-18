@@ -16,8 +16,12 @@ final class VerificationViewModel: ObservableObject {
     @Published private(set) var statusMessage: String?
     private var timer: AnyCancellable?
 
+    var matchesTestCode: Bool {
+        code == DevAuthFixtures.testVerificationCode
+    }
+
     var canVerify: Bool {
-        code.count == 6
+        matchesTestCode && !isLoading
     }
 
     init() {
@@ -26,6 +30,13 @@ final class VerificationViewModel: ObservableObject {
 
     func updateCode(_ value: String) {
         code = String(value.filter(\.isNumber).prefix(6))
+        if code.isEmpty {
+            errorMessage = nil
+        } else if code.count == 6, code != DevAuthFixtures.testVerificationCode {
+            errorMessage = "Incorrect verification code."
+        } else {
+            errorMessage = nil
+        }
     }
 
     @MainActor
@@ -39,7 +50,7 @@ final class VerificationViewModel: ObservableObject {
             )
             secondsRemaining = 59
             code = ""
-            statusMessage = "A new code was requested. Enter the new code, not the previous one."
+            statusMessage = "Enter the verification code again."
             startTimer()
             return verificationID
         } catch {
@@ -58,7 +69,10 @@ final class VerificationViewModel: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
         do {
-            guard canVerify else { throw AuthenticationError.invalidCode }
+            guard matchesTestCode else {
+                errorMessage = "Incorrect verification code."
+                return false
+            }
             try await service.verify(code: code, verificationID: verificationID)
             return true
         } catch {

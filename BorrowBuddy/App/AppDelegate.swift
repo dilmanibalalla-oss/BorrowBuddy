@@ -2,25 +2,17 @@
 //  AppDelegate.swift
 //  BorrowBuddy
 //
-//  Created by Dilmani Balalla on 2026-10-17.
+//  Handles Firebase Phone Auth APNs / URL callbacks for the SwiftUI app lifecycle.
 //
 
-import SwiftUI
 import UIKit
 import UserNotifications
-#if canImport(FirebaseMessaging)
-import FirebaseMessaging
-#endif
 
 #if canImport(FirebaseAuth)
 import FirebaseAuth
 #endif
 
-@main
-final class AppDelegate: UIResponder, UIApplicationDelegate {
-    private var router: AppRouter?
-    private var dependencies: AppDependencies?
-
+final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -28,34 +20,16 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         FirebaseBootstrap.configure()
 
         #if canImport(FirebaseAuth) && DEBUG
-        // Opt-in only: this flag rejects real numbers and accepts Firebase console test numbers.
+        // Always on in DEBUG so Firebase console test numbers work without paid SMS.
+        // Register +94 713123411 with code 123456 under Authentication → Phone → Phone numbers for testing.
         if FirebaseBootstrap.isConfigured {
-            Auth.auth().settings?.isAppVerificationDisabledForTesting = ProcessInfo.processInfo.arguments.contains("--firebase-test-phone")
+            Auth.auth().settings?.isAppVerificationDisabledForTesting = true
         }
         #endif
 
-        router = AppRouter()
-        dependencies = AppDependencies()
         UNUserNotificationCenter.current().delegate = self
-        #if canImport(FirebaseMessaging)
-        if FirebaseBootstrap.isConfigured { Messaging.messaging().delegate = self }
-        #endif
-
         application.registerForRemoteNotifications()
         return true
-    }
-
-    func makeRootViewController() -> UIViewController {
-        guard let router, let dependencies else {
-            preconditionFailure("App dependencies must be initialized before connecting a scene.")
-        }
-        let rootView = RootView()
-            .environmentObject(router)
-            .environmentObject(dependencies)
-            .environmentObject(dependencies.borrowingFlow)
-            .environmentObject(dependencies.loanLifecycle)
-            .preferredColorScheme(.light)
-        return UIHostingController(rootView: rootView)
     }
 
     func application(
@@ -65,9 +39,6 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         #if canImport(FirebaseAuth)
         guard FirebaseBootstrap.isConfigured else { return }
         Auth.auth().setAPNSToken(deviceToken, type: .unknown)
-        #endif
-        #if canImport(FirebaseMessaging)
-        if FirebaseBootstrap.isConfigured { Messaging.messaging().apnsToken = deviceToken }
         #endif
     }
 
@@ -90,11 +61,6 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         open url: URL,
         options: [UIApplication.OpenURLOptionsKey: Any] = [:]
     ) -> Bool {
-        handleIncomingURL(url)
-    }
-
-    @discardableResult
-    func handleIncomingURL(_ url: URL) -> Bool {
         #if canImport(FirebaseAuth)
         guard FirebaseBootstrap.isConfigured else { return false }
         return Auth.auth().canHandle(url)
@@ -105,20 +71,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 extension AppDelegate: UNUserNotificationCenterDelegate {
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
-                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
         completionHandler([.banner, .sound])
     }
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
-                                withCompletionHandler completionHandler: @escaping () -> Void) {
-        if dependencies?.authenticationService.currentUserID != nil { router?.go(to: .loanList) }
-        completionHandler()
-    }
 }
-#if canImport(FirebaseMessaging)
-extension AppDelegate: MessagingDelegate {
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        Task { await dependencies?.notificationService.registerToken(fcmToken) }
-    }
-}
-#endif

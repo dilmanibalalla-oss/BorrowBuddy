@@ -8,78 +8,109 @@ import SwiftUI
 
 struct FaceIDSetupView: View {
     @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var dependencies: AppDependencies
     @State private var errorMessage: String?
+    @State private var isEnabling = false
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
 
-            Image(systemName: "faceid")
-                .font(.system(size: 72, weight: .regular))
-                .foregroundStyle(AppTheme.blue)
+            ZStack {
+                Circle()
+                    .stroke(AppTheme.blue, lineWidth: 3)
+                    .frame(width: 168, height: 168)
+
+                Circle()
+                    .stroke(AppTheme.blue.opacity(0.35), lineWidth: 2)
+                    .frame(width: 118, height: 118)
+
+                Image(systemName: "faceid")
+                    .font(.system(size: 52, weight: .regular))
+                    .foregroundStyle(AppTheme.blue)
+            }
 
             Text("Snappy Sign In")
                 .font(AppTheme.rounded(28, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
-                .padding(.top, 28)
+                .padding(.top, 36)
 
-            Text("Enable Face ID for faster, safer access\nthe next time you open BorrowBuddy.")
+            Text("Secure your tool shed with Face ID for fast and secure transactions.")
                 .font(.system(size: 16))
-                .foregroundStyle(AppTheme.secondaryText)
+                .foregroundStyle(AppTheme.blue.opacity(0.85))
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
                 .padding(.top, 12)
-                .padding(.horizontal, 28)
+                .padding(.horizontal, 32)
 
             if let errorMessage {
                 Text(errorMessage)
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.coral)
+                    .multilineTextAlignment(.center)
                     .padding(.top, 16)
+                    .padding(.horizontal, 24)
             }
 
             Spacer()
 
-            PrimaryButton(title: "Enable Face ID") {
+            PrimaryButton(
+                title: isEnabling ? "Waiting for Face ID..." : "Enable Face ID",
+                enabled: !isEnabling
+            ) {
                 Task { await enableFaceID() }
             }
             .padding(.horizontal, 24)
 
-            Button("Maybe Later") {
-                router.go(to: .location)
+            SecondaryButton(title: "Maybe Later", enabled: !isEnabling) {
+                skipFaceID()
             }
-            .font(AppTheme.rounded(16, weight: .semibold))
-            .foregroundStyle(AppTheme.blue)
-            .padding(.top, 16)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
             .padding(.bottom, 24)
         }
         .frame(maxWidth: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+        .onAppear {
+            if let message = BiometricAuthService.shared.availabilityMessage {
+                errorMessage = message
+            }
+        }
     }
 
     private func enableFaceID() async {
-        let context = LAContext()
-        var authError: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) else {
-            errorMessage = "Biometrics aren't available on this device."
-            router.go(to: .location)
-            return
-        }
+        isEnabling = true
+        errorMessage = nil
+        defer { isEnabling = false }
 
         do {
-            let success = try await context.evaluatePolicy(
-                .deviceOwnerAuthenticationWithBiometrics,
-                localizedReason: "Enable Face ID for BorrowBuddy"
+            let success = try await BiometricAuthService.shared.authenticate(
+                reason: "Enable Face ID so you can unlock BorrowBuddy quickly."
             )
-            if success {
-                UserDefaults.standard.set(true, forKey: "faceIDEnabled")
+            guard success else {
+                errorMessage = "Face ID wasn't confirmed. Try again."
+                return
             }
+
+            guard let credentials = dependencies.pendingCredentials else {
+                errorMessage = "Couldn't save login for Face ID. Go back and create your account again."
+                return
+            }
+
+            CredentialStore.save(credentials)
+            CredentialStore.isFaceIDEnabled = true
+            dependencies.pendingCredentials = nil
             router.go(to: .location)
         } catch {
-            errorMessage = "Face ID wasn't enabled. You can turn it on later in Settings."
-            try? await Task.sleep(for: .milliseconds(800))
-            router.go(to: .location)
+            // Stay on this screen — don't auto-skip so the user can retry or tap Maybe Later.
+            errorMessage = error.localizedDescription
         }
+    }
+
+    private func skipFaceID() {
+        CredentialStore.isFaceIDEnabled = false
+        dependencies.pendingCredentials = nil
+        router.go(to: .location)
     }
 }

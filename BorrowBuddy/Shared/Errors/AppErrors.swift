@@ -12,6 +12,7 @@ enum AuthenticationError: LocalizedError {
     case invalidCode
     case verificationNotStarted
     case signInRequired
+    case biometricsUnavailable
     case unknown
 
     var errorDescription: String? {
@@ -28,6 +29,8 @@ enum AuthenticationError: LocalizedError {
             return "Request a verification code first."
         case .signInRequired:
             return "Please sign in to continue."
+        case .biometricsUnavailable:
+            return "Face ID isn't available on this device."
         case .unknown:
             return "Something went wrong. Please try again."
         }

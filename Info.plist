@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.toolpool.BorrowBuddy.firebase</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.578094387333-02mpop1qi1tqcddbl3ofs92ermot7k7u</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>BorrowBuddy uses Face ID for quick, secure sign-in.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>BorrowBuddy uses your location to show tools near your shed.</string>
+</dict>
+</plist>
