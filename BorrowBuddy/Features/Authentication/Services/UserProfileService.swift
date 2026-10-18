@@ -37,13 +37,14 @@ final class FirestoreUserProfileService: UserProfileService {
         guard let uid = Auth.auth().currentUser?.uid else {
             throw CommunityError.signInRequired
         }
-        try await db.collection("users").document(uid).setData(
-            [
-                "shedLocation": location.dictionary,
-                "displayName": Auth.auth().currentUser?.displayName as Any,
-                "email": Auth.auth().currentUser?.email as Any
-            ],
-            merge: true
-        )
+
+        let data: [String: Any] = [
+            "shedLocation": location.dictionary,
+            "displayName": Auth.auth().currentUser?.displayName as Any,
+            "email": Auth.auth().currentUser?.email as Any
+        ]
+
+       
+        try await db.collection("users").document(uid).setData(data, merge: true)
     }
 }
