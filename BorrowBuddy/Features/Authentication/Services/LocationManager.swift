@@ -24,6 +24,8 @@ final class LocationManager: NSObject, ObservableObject {
     private let manager = CLLocationManager()
     private let geocoder = CLGeocoder()
     private var didReceiveFix = false
+    private var locationTimeoutTask: Task<Void, Never>?
+    private var geocodeRequestID = UUID()
 
     var hasResolvedCoordinate: Bool { coordinate != nil }
 
@@ -55,6 +57,7 @@ final class LocationManager: NSObject, ObservableObject {
     }
 
     func requestPermissionAndLocate() {
+        guard !isLocating else { return }
         errorMessage = nil
         didReceiveFix = false
         authorizationStatus = manager.authorizationStatus
@@ -62,6 +65,7 @@ final class LocationManager: NSObject, ObservableObject {
         switch manager.authorizationStatus {
         case .notDetermined:
             isLocating = true
+            scheduleLocationTimeout()
             manager.requestWhenInUseAuthorization()
         case .authorizedAlways, .authorizedWhenInUse:
             startUpdating()
@@ -74,6 +78,8 @@ final class LocationManager: NSObject, ObservableObject {
     }
 
     func updatePin(to newCoordinate: CLLocationCoordinate2D) {
+        stopUpdating()
+        errorMessage = nil
         coordinate = newCoordinate
         cameraPosition = .region(
             MKCoordinateRegion(
@@ -94,19 +100,25 @@ final class LocationManager: NSObject, ObservableObject {
             return
         }
 
-        isGeocoding = true
+        let requestID = beginGeocoding()
+        let timeout = geocodeTimeout()
         errorMessage = nil
-        defer { isGeocoding = false }
+        defer {
+            timeout.cancel()
+            if geocodeRequestID == requestID { isGeocoding = false }
+        }
 
         do {
             let placemarks = try await Self.forwardGeocode(query, using: geocoder)
+            guard geocodeRequestID == requestID else { return }
             guard let location = placemarks.first?.location else {
                 errorMessage = "Couldn't find that address. Try adjusting it."
                 return
             }
             apply(placemark: placemarks.first, coordinate: location.coordinate)
         } catch {
-            errorMessage = "Couldn't look up that address. Check the details and try again."
+            guard geocodeRequestID == requestID else { return }
+            errorMessage = "Couldn't look up that address in time. Check your connection, try again, or choose a pin on the map."
         }
     }
 
@@ -114,25 +126,67 @@ final class LocationManager: NSObject, ObservableObject {
         isLocating = true
         errorMessage = nil
         didReceiveFix = false
+        scheduleLocationTimeout()
         manager.startUpdatingLocation()
-        // Also request a one-shot fix for simulators that don't stream updates.
-        manager.requestLocation()
+    }
+
+    private func scheduleLocationTimeout() {
+        locationTimeoutTask?.cancel()
+        locationTimeoutTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(15))
+            } catch {
+                return
+            }
+            guard let self, self.isLocating else { return }
+            self.stopUpdating()
+            self.errorMessage = "Location took too long. Tap the map to place your pin, type your address, or try again."
+        }
     }
 
     private func stopUpdating() {
+        locationTimeoutTask?.cancel()
+        locationTimeoutTask = nil
         manager.stopUpdatingLocation()
         isLocating = false
     }
 
-    private func reverseGeocode(_ coordinate: CLLocationCoordinate2D) async {
+    // Cancel the previous lookup and ignore its eventual result.
+    private func beginGeocoding() -> UUID {
+        geocodeRequestID = UUID()
+        geocoder.cancelGeocode()
         isGeocoding = true
-        defer { isGeocoding = false }
+        return geocodeRequestID
+    }
+
+    private func geocodeTimeout() -> Task<Void, Never> {
+        let requestID = geocodeRequestID
+        return Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(10))
+            } catch {
+                return
+            }
+            guard let self, self.geocodeRequestID == requestID else { return }
+            self.geocoder.cancelGeocode()
+        }
+    }
+
+    private func reverseGeocode(_ coordinate: CLLocationCoordinate2D) async {
+        let requestID = beginGeocoding()
+        let timeout = geocodeTimeout()
+        defer {
+            timeout.cancel()
+            if geocodeRequestID == requestID { isGeocoding = false }
+        }
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         do {
             let placemarks = try await Self.reverseGeocode(location, using: geocoder)
+            guard geocodeRequestID == requestID else { return }
             apply(placemark: placemarks.first, coordinate: coordinate, preserveTypedFields: false)
         } catch {
-            errorMessage = "Got your pin, but couldn't fill the address automatically."
+            guard geocodeRequestID == requestID else { return }
+            errorMessage = "Your pin is saved, but the address lookup failed or timed out. You can enter the address manually."
         }
     }
 
@@ -200,7 +254,7 @@ extension LocationManager: CLLocationManagerDelegate {
             authorizationStatus = manager.authorizationStatus
             switch manager.authorizationStatus {
             case .authorizedAlways, .authorizedWhenInUse:
-                startUpdating()
+                if isLocating { startUpdating() }
             case .denied, .restricted:
                 stopUpdating()
                 errorMessage = "Location is off. Enable it in Settings, or type your address. On Simulator: Features → Location → Custom Location."
@@ -215,7 +269,7 @@ extension LocationManager: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         Task { @MainActor in
-            guard !didReceiveFix else { return }
+            guard isLocating, !didReceiveFix, location.horizontalAccuracy >= 0 else { return }
             didReceiveFix = true
             stopUpdating()
             updatePin(to: location.coordinate)
@@ -224,6 +278,7 @@ extension LocationManager: CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
+            guard isLocating else { return }
             stopUpdating()
             let nsError = error as NSError
             if nsError.domain == kCLErrorDomain, nsError.code == CLError.denied.rawValue {

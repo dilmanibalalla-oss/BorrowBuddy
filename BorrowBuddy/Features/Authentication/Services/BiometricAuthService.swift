@@ -53,6 +53,9 @@ final class BiometricAuthService {
     }
 
     func authenticate(reason: String) async throws -> Bool {
+        guard activeContext == nil else {
+            throw BiometricError.unavailable("Authentication is already in progress.")
+        }
         let context = LAContext()
         context.localizedCancelTitle = "Cancel"
         context.localizedFallbackTitle = "" // Force Face ID / Touch ID — no password fallback sheet.
@@ -67,6 +70,21 @@ final class BiometricAuthService {
             throw error ?? BiometricError.unavailable("\(biometryTypeName) isn't available.")
         }
 
+        var timedOut = false
+        let timeoutTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .seconds(20))
+            } catch {
+                return
+            }
+            timedOut = true
+            context.invalidate()
+        }
+        defer {
+            timeoutTask.cancel()
+            activeContext = nil
+        }
+
         do {
             let success = try await context.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics,
@@ -76,6 +94,13 @@ final class BiometricAuthService {
             return success
         } catch {
             activeContext = nil
+            if timedOut {
+                #if targetEnvironment(simulator)
+                throw BiometricError.failed("Face ID timed out. The simulator needs a simulated face match. Try again or choose Maybe Later.")
+                #else
+                throw BiometricError.failed("Face ID timed out. Try again or choose Maybe Later.")
+                #endif
+            }
             let laError = error as? LAError
             switch laError?.code {
             case .userCancel, .appCancel, .systemCancel:

@@ -131,7 +131,6 @@ struct LocationSetupView: View {
     private func confirmLocation() async {
         isSaving = true
         errorMessage = nil
-        defer { isSaving = false }
 
         if locationManager.coordinate == nil {
             await locationManager.geocodeTypedAddress()
@@ -140,15 +139,21 @@ struct LocationSetupView: View {
         guard let shed = locationManager.shedLocation else {
             errorMessage = locationManager.errorMessage
                 ?? "Set a location with the map or a valid address first."
+            isSaving = false
             return
         }
 
         do {
-            try await dependencies.userProfileService.saveShedLocation(shed)
+            // Finish onboarding locally and go home right away — don't wait on Firestore.
             try await dependencies.authenticationService.completeOnboarding()
             router.go(to: .home)
+
+            Task {
+                try? await dependencies.userProfileService.saveShedLocation(shed)
+            }
         } catch {
             errorMessage = error.localizedDescription
+            isSaving = false
         }
     }
 }
