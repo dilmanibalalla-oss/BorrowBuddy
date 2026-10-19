@@ -17,6 +17,30 @@ enum AppRoute: Equatable {
     case faceID
     case location
     case home
+    case nearbyMap
+    case toolDetails
+    case reservationReview
+    case reservationPending
+    case wallet
+    case profile
+    case loanList
+    case savedLocation
+    case loanChat
+    case baselineReview
+    case baselineCapture
+    case conditionGuide
+    case pickupMeet
+    case pickupConfirmed
+    case activeLoan
+    case toolReturn
+    case arrivalConfirmed
+    case returnCapture
+    case compareCondition
+    case ownerReview
+    case loanCompleted
+    case loanRating
+    case helpSupport
+    case nonReturnCase
 }
 
 @MainActor

@@ -30,8 +30,56 @@ struct RootView: View {
                 FaceIDSetupView()
             case .location:
                 LocationSetupView()
+            case .savedLocation:
+                LocationView()
             case .home:
-                DashboardView()
+                HomeView()
+            case .profile:
+                ProfileView()
+            case .wallet:
+                WalletView()
+            case .nearbyMap:
+                NearbyMapView()
+            case .toolDetails:
+                ToolDetailsView()
+            case .reservationReview:
+                ReservationReviewView()
+            case .loanList:
+                LoanListView()
+            case .reservationPending:
+                LoanSessionView { ReservationPendingView() }
+            case .loanChat:
+                LoanSessionView { LoanChatView() }
+            case .baselineReview:
+                LoanSessionView { BaselineReviewView() }
+            case .baselineCapture:
+                LoanSessionView { EvidenceCaptureView(phase: .pickup) }
+            case .conditionGuide:
+                LoanSessionView { ConditionGuideView() }
+            case .pickupMeet:
+                LoanSessionView { PickupMeetView() }
+            case .pickupConfirmed:
+                LoanSessionView { PickupConfirmedView() }
+            case .activeLoan:
+                LoanSessionView { ActiveLoanView() }
+            case .toolReturn:
+                LoanSessionView { ToolReturnView() }
+            case .arrivalConfirmed:
+                LoanSessionView { ArrivalConfirmedView() }
+            case .returnCapture:
+                LoanSessionView { EvidenceCaptureView(phase: .return) }
+            case .compareCondition:
+                LoanSessionView { CompareConditionView() }
+            case .ownerReview:
+                LoanSessionView { OwnerReviewView() }
+            case .loanCompleted:
+                LoanSessionView { LoanCompletedView() }
+            case .loanRating:
+                LoanSessionView { LoanRatingView() }
+            case .helpSupport:
+                LoanSessionView { HelpSupportView() }
+            case .nonReturnCase:
+                LoanSessionView { NonReturnCaseView() }
             }
         }
         .animation(.easeInOut(duration: 0.25), value: router.route)
