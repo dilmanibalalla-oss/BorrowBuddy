@@ -11,6 +11,14 @@ final class AppDependencies: ObservableObject {
     let authenticationService: AuthenticationService
     let notificationService: NotificationService
     let userProfileService: UserProfileService
+    let accountRepository: AccountRepository
+    let borrowingRepository: BorrowingRepository
+    let communityRepository: CommunityRepository
+    let eventReminderService: EventReminderService
+    let borrowingFlow: BorrowingFlowStore
+    let loanLifecycle: LoanLifecycleViewModel
+    let loanLifecycleRepository: LoanLifecycleRepository
+    let conditionComparisonService: ConditionComparisonService
 
     @Published var verificationID: String?
     @Published var verificationPhoneNumber = ""
@@ -22,11 +30,27 @@ final class AppDependencies: ObservableObject {
     init(
         authenticationService: AuthenticationService = FirebaseAuthenticationService(),
         notificationService: NotificationService = LocalNotificationService(),
-        userProfileService: UserProfileService = FirestoreUserProfileService()
+        userProfileService: UserProfileService = FirestoreUserProfileService(),
+        accountRepository: AccountRepository = FirebaseAccountRepository(),
+        borrowingRepository: BorrowingRepository? = nil,
+        communityRepository: CommunityRepository? = nil,
+        eventReminderService: EventReminderService? = nil,
+        borrowingFlow: BorrowingFlowStore? = nil,
+        loanLifecycle: LoanLifecycleViewModel? = nil,
+        loanLifecycleRepository: LoanLifecycleRepository? = nil,
+        conditionComparisonService: ConditionComparisonService? = nil
     ) {
         self.authenticationService = authenticationService
         self.notificationService = notificationService
         self.userProfileService = userProfileService
+        self.accountRepository = accountRepository
+        self.borrowingRepository = borrowingRepository ?? FirebaseBorrowingRepository()
+        self.communityRepository = communityRepository ?? FirebaseCommunityRepository()
+        self.eventReminderService = eventReminderService ?? EventReminderService()
+        self.borrowingFlow = borrowingFlow ?? BorrowingFlowStore()
+        self.loanLifecycle = loanLifecycle ?? LoanLifecycleViewModel()
+        self.loanLifecycleRepository = loanLifecycleRepository ?? FirebaseLoanLifecycleRepository()
+        self.conditionComparisonService = conditionComparisonService ?? VisionConditionComparisonService()
     }
 
     func observeAuthentication() {
@@ -36,14 +60,22 @@ final class AppDependencies: ObservableObject {
             }
         }
     }
+
 }
 
 protocol NotificationService {
     func registerToken() async
+    func schedule(for loan: ReservationRecord, preferences: NotificationSettings) async
 }
 
 final class LocalNotificationService: NotificationService {
+    private let loans = LoanNotificationService()
+
     func registerToken() async {
-        // Push token registration can be wired to Firebase Messaging later.
+        await loans.registerToken()
+    }
+
+    func schedule(for loan: ReservationRecord, preferences: NotificationSettings) async {
+        await loans.schedule(for: loan, preferences: preferences)
     }
 }

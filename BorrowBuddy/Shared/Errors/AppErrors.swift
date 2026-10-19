@@ -39,11 +39,32 @@ enum AuthenticationError: LocalizedError {
 
 enum CommunityError: LocalizedError {
     case signInRequired
+    case profileMissing
+    case unavailable
+    case invalidInput(String)
+    case wrongRole
+    case blocked
+    case expiredLocation
+    case invalidStep
 
     var errorDescription: String? {
         switch self {
         case .signInRequired:
             return "Please sign in to continue."
+        case .profileMissing:
+            return "Couldn't find your account profile."
+        case .unavailable:
+            return "This action isn't available right now."
+        case .invalidInput(let message):
+            return message
+        case .wrongRole:
+            return "You can't borrow your own listing."
+        case .blocked:
+            return "Borrowing is temporarily blocked on this account."
+        case .expiredLocation:
+            return "Move closer to the drop-off and refresh your location before confirming arrival."
+        case .invalidStep:
+            return "This loan step cannot be completed yet."
         }
     }
 }

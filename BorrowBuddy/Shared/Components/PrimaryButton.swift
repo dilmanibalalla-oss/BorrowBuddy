@@ -1,8 +1,3 @@
-//
-//  PrimaryButton.swift
-//  BorrowBuddy
-//
-
 import SwiftUI
 
 struct PrimaryButton: View {
@@ -23,13 +18,13 @@ struct PrimaryButton: View {
             }
             .foregroundStyle(AppTheme.blue)
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: 48)
             .background(AppTheme.yellow.opacity(enabled ? 1 : 0.55))
             .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 11)
                     .stroke(AppTheme.blue, lineWidth: 2)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 11))
             .shadow(color: AppTheme.shadow, radius: 0, x: 0, y: 5)
         }
         .buttonStyle(.plain)

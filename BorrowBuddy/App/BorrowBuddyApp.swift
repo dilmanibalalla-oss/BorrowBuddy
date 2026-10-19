@@ -16,6 +16,8 @@ struct BorrowBuddyApp: App {
             RootView()
                 .environmentObject(router)
                 .environmentObject(dependencies)
+                .environmentObject(dependencies.borrowingFlow)
+                .environmentObject(dependencies.loanLifecycle)
                 .preferredColorScheme(.light)
                 .onAppear {
                     dependencies.observeAuthentication()
