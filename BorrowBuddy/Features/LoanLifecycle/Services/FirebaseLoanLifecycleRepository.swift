@@ -146,7 +146,7 @@ final class FirebaseLoanLifecycleRepository: LoanLifecycleRepository {
                         "lastIncomeReservationId": reservationID, "updatedAt": FieldValue.serverTimestamp()
                     ], forDocument: ownerReference)
                     transaction.updateData([
-                        "status": "available", "reservationId": "", "updatedAt": FieldValue.serverTimestamp()
+                        "status": "completed", "reservationId": "", "updatedAt": FieldValue.serverTimestamp()
                     ], forDocument: toolReference)
                     return nil
                 } catch {

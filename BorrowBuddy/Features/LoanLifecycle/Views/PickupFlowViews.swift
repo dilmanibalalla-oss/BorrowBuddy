@@ -2,6 +2,18 @@ import AVFoundation
 import SwiftUI
 import UIKit
 
+enum EvidenceCamera {
+    /// Recent simulators report a camera because they can use the Mac camera.
+    /// The 8-photo demo still needs one saved photo per shutter tap.
+    static var usesSimulatorPhotos: Bool {
+        #if targetEnvironment(simulator)
+        true
+        #else
+        false
+        #endif
+    }
+}
+
 struct PickupMeetView: View {
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var dependencies: AppDependencies
@@ -231,9 +243,9 @@ struct ConditionGuideView: View {
                 .padding(.vertical, 8)
             }
 
-            PrimaryButton(title: "Allow camera & continue") {
+            PrimaryButton(title: EvidenceCamera.usesSimulatorPhotos ? "Continue to 8 photos" : "Allow camera & continue") {
                 Task {
-                    if !UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    if EvidenceCamera.usesSimulatorPhotos {
                         router.go(to: .baselineCapture)
                         return
                     }
@@ -315,6 +327,8 @@ struct EvidenceCaptureView: View {
     private var currentAngle: EvidenceAngle { EvidenceAngle.allCases[currentIndex] }
     private var isComplete: Bool { photos.count == EvidenceAngle.allCases.count }
     private var isPickup: Bool { phase == .pickup }
+    private var usesSimulatorPhotos: Bool { EvidenceCamera.usesSimulatorPhotos }
+    private var nextRoute: AppRoute { isPickup ? .baselineReview : .compareCondition }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -420,7 +434,9 @@ struct EvidenceCaptureView: View {
             grid
             VStack {
                 Spacer()
-                Text(isPickup ? currentAngle.instruction : "Return area · \(Date().formatted(date: .omitted, time: .standard))")
+                Text(usesSimulatorPhotos
+                     ? "Simulator photo · tap the shutter (\(min(photos.count + 1, 8)) of 8)"
+                     : (isPickup ? currentAngle.instruction : "Return area · \(Date().formatted(date: .omitted, time: .standard))"))
                     .font(.system(size: 12))
                     .foregroundStyle(Color.white)
                     .padding(.horizontal, 12)
@@ -470,13 +486,19 @@ struct EvidenceCaptureView: View {
         HStack {
             Button("Retake") {
                 lifecycle.retakeLast(phase: phase)
-                showPicker = true
+                if usesSimulatorPhotos {
+                    captureSimulatorPhoto()
+                } else {
+                    showPicker = true
+                }
             }
             .disabled(photos.isEmpty)
             Spacer()
             Button {
                 if isComplete {
-                    router.go(to: isPickup ? .baselineReview : .compareCondition)
+                    router.go(to: nextRoute)
+                } else if usesSimulatorPhotos {
+                    captureSimulatorPhoto()
                 } else {
                     showPicker = true
                 }
@@ -498,7 +520,7 @@ struct EvidenceCaptureView: View {
             Spacer()
             Button(isComplete ? "Review" : "Shots") {
                 if isComplete {
-                    router.go(to: isPickup ? .baselineReview : .compareCondition)
+                    router.go(to: nextRoute)
                 }
             }
         }
@@ -506,6 +528,55 @@ struct EvidenceCaptureView: View {
         .foregroundStyle(isPickup ? Color.white : AppTheme.blue)
         .padding(.horizontal, 11)
         .padding(.top, 12)
+    }
+
+    private func captureSimulatorPhoto() {
+        lifecycle.capture(simulatorImage(for: currentAngle), phase: phase)
+        if lifecycle.photos(for: phase).count == EvidenceAngle.allCases.count {
+            router.go(to: nextRoute)
+        }
+    }
+
+    private func simulatorImage(for angle: EvidenceAngle) -> UIImage {
+        let size = CGSize(width: 900, height: 1200)
+        let palette: [UIColor] = [
+            UIColor(red: 0.22, green: 0.47, blue: 0.62, alpha: 1),
+            UIColor(red: 0.18, green: 0.42, blue: 0.38, alpha: 1),
+            UIColor(red: 0.45, green: 0.32, blue: 0.18, alpha: 1),
+            UIColor(red: 0.35, green: 0.28, blue: 0.48, alpha: 1),
+            UIColor(red: 0.20, green: 0.35, blue: 0.52, alpha: 1),
+            UIColor(red: 0.42, green: 0.24, blue: 0.28, alpha: 1),
+            UIColor(red: 0.16, green: 0.38, blue: 0.46, alpha: 1),
+            UIColor(red: 0.33, green: 0.40, blue: 0.22, alpha: 1)
+        ]
+        let index = EvidenceAngle.allCases.firstIndex(of: angle) ?? 0
+        let color = palette[index % palette.count]
+        return UIGraphicsImageRenderer(size: size).image { context in
+            color.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            UIColor.white.withAlphaComponent(0.18).setStroke()
+            let frame = CGRect(x: 70, y: 140, width: size.width - 140, height: size.height - 280)
+            context.stroke(frame)
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            let title = "\(angle.title)\n\(phase == .pickup ? "Pickup" : "Return") \(index + 1) of 8"
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 64, weight: .bold),
+                .foregroundColor: UIColor.white,
+                .paragraphStyle: paragraph
+            ]
+            let text = title as NSString
+            let bounds = text.boundingRect(
+                with: CGSize(width: size.width - 120, height: 500),
+                options: .usesLineFragmentOrigin,
+                attributes: attributes,
+                context: nil
+            )
+            text.draw(
+                in: CGRect(x: 60, y: (size.height - bounds.height) / 2, width: size.width - 120, height: bounds.height),
+                withAttributes: attributes
+            )
+        }
     }
 }
 
@@ -515,7 +586,12 @@ struct BaselineReviewView: View {
     @EnvironmentObject private var lifecycle: LoanLifecycleViewModel
     @EnvironmentObject private var flow: BorrowingFlowStore
     @StateObject private var model = CommunityViewModel()
+    @State private var isAcknowledging = false
     private var isBorrower: Bool { flow.reservation?.borrowerID == dependencies.authenticationService.currentUserID }
+    private var hasAcknowledged: Bool {
+        guard let userID = dependencies.authenticationService.currentUserID else { return false }
+        return flow.reservation?.acknowledgements.contains(userID) == true
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -543,17 +619,16 @@ struct BaselineReviewView: View {
             }
 
             AccountSaveStatus(error: model.error, success: nil).padding(.horizontal, 18)
-            PrimaryButton(title: lifecycle.isLoading ? "Saving..." : "I acknowledge this baseline", enabled: !lifecycle.isLoading && !model.isLoading && lifecycle.pickupPhotos.count == 8) {
-                Task {
-                    guard let loan = flow.reservation else { return }
-                    if isBorrower && loan.acknowledgements.isEmpty {
-                        guard await lifecycle.syncEvidence(phase: .pickup, using: dependencies.loanLifecycleRepository) else { return }
-                    }
-                    if await model.perform({
-                        try await dependencies.communityRepository.acknowledgePickup(reservationID: loan.id)
-                        try await dependencies.refreshSelectedLoan()
-                    }) {
-                        router.go(to: flow.reservation?.status == .active ? .pickupConfirmed : .reservationPending)
+            VStack(spacing: 10) {
+                PrimaryButton(
+                    title: hasAcknowledged ? "Acknowledged" : (isAcknowledging || lifecycle.isLoading || model.isLoading ? "Saving..." : "I acknowledge this baseline"),
+                    enabled: !hasAcknowledged && !isAcknowledging && !lifecycle.isLoading && !model.isLoading && lifecycle.pickupPhotos.count == 8
+                ) {
+                    Task { await acknowledgeBaseline() }
+                }
+                if hasAcknowledged {
+                    PrimaryButton(title: model.isLoading ? "Opening..." : "Continue to active loan", systemImage: "arrow.right", enabled: !model.isLoading) {
+                        Task { await continueAfterAcknowledgement() }
                     }
                 }
             }
@@ -562,6 +637,37 @@ struct BaselineReviewView: View {
             .background(Color.white)
         }
         .background(AppTheme.background)
+    }
+
+    private func acknowledgeBaseline() async {
+        guard let loan = flow.reservation, !isAcknowledging, !hasAcknowledged else { return }
+        isAcknowledging = true
+        defer { isAcknowledging = false }
+        if isBorrower {
+            guard await lifecycle.syncEvidence(phase: .pickup, using: dependencies.loanLifecycleRepository) else { return }
+        }
+        guard await model.perform({
+            try await dependencies.communityRepository.acknowledgePickup(reservationID: loan.id)
+            try await dependencies.refreshSelectedLoan()
+        }) else { return }
+        if let updated = flow.reservation {
+            lifecycle.configure(reservationID: updated.id, stage: updated.lifecycleStage)
+        }
+        router.go(to: flow.reservation?.status == .active ? .pickupConfirmed : .reservationPending)
+    }
+
+    private func continueAfterAcknowledgement() async {
+        guard let loan = flow.reservation else { return }
+        if loan.status != .active {
+            guard await model.perform({
+                try await dependencies.communityRepository.acknowledgePickup(reservationID: loan.id)
+                try await dependencies.refreshSelectedLoan()
+            }) else { return }
+        }
+        if let updated = flow.reservation {
+            lifecycle.configure(reservationID: updated.id, stage: updated.lifecycleStage == .pending ? .active : updated.lifecycleStage)
+        }
+        router.go(to: .pickupConfirmed)
     }
 
     private var photoGrid: some View {

@@ -41,8 +41,10 @@ final class FirebaseCommunityRepository: CommunityRepository {
 
     func saveAddress(street: String, unit: String, postalCode: String, latitude: Double, longitude: Double) async throws {
         let userID = try currentUserID()
+        let reference = database.collection("users").document(userID)
+        let snapshot = try await reference.getDocument()
         let address = ["street": street, "unit": unit, "postalCode": postalCode]
-        try await database.collection("users").document(userID).setData([
+        var payload: [String: Any] = [
             "address": address,
             "shedLocation": [
                 "street": street,
@@ -53,15 +55,46 @@ final class FirebaseCommunityRepository: CommunityRepository {
             ],
             "location": GeoPoint(latitude: latitude, longitude: longitude),
             "updatedAt": FieldValue.serverTimestamp()
-        ], merge: true)
+        ]
+        if snapshot.data()?["creditBalance"] == nil {
+            payload["creditBalance"] = AccountSummary.newAccountCredits
+            payload["creditHeld"] = 0
+            if !snapshot.exists {
+                payload["createdAt"] = FieldValue.serverTimestamp()
+            }
+        }
+        try await reference.setData(payload, merge: true)
     }
 
     func acknowledgePickup(reservationID: String) async throws {
         let userID = try currentUserID()
-        try await database.collection("reservations").document(reservationID).updateData([
-            "acknowledgements": FieldValue.arrayUnion([userID]),
+        let reference = database.collection("reservations").document(reservationID)
+        let snapshot = try await reference.getDocument()
+        guard let data = snapshot.data() else {
+            throw CommunityError.invalidInput("This reservation no longer exists.")
+        }
+        let ownerID = data["ownerId"] as? String ?? ""
+        let borrowerID = data["borrowerId"] as? String ?? ""
+        guard userID == ownerID || userID == borrowerID else { throw CommunityError.wrongRole }
+
+        var acknowledgements = data["acknowledgements"] as? [String] ?? []
+        if !acknowledgements.contains(userID) {
+            acknowledgements.append(userID)
+        }
+        var update: [String: Any] = [
+            "acknowledgements": acknowledgements,
             "updatedAt": FieldValue.serverTimestamp()
-        ])
+        ]
+        // The borrower has already uploaded the 8 baseline photos before this acknowledgement.
+        // Activating here opens the rental so return and settlement can continue.
+        if acknowledgements.contains(borrowerID) && data["status"] as? String != ReservationStatus.completed.rawValue {
+            update["status"] = ReservationStatus.active.rawValue
+            update["lifecycleStage"] = LoanLifecycleStage.active.rawValue
+            if data["activatedAt"] == nil {
+                update["activatedAt"] = FieldValue.serverTimestamp()
+            }
+        }
+        try await reference.updateData(update)
     }
 
     func recordArrival(reservationID: String, accuracy: Double) async throws {

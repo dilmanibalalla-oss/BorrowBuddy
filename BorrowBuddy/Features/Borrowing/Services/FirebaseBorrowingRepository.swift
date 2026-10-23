@@ -35,7 +35,21 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
             .whereField("status", isEqualTo: "available")
             .limit(to: 30)
             .getDocuments(source: .server)
-        return snapshot.documents.compactMap(makeTool)
+        let finishedToolIDs = await toolIDsWithCompletedLoans()
+        return snapshot.documents.compactMap(makeTool).filter { !finishedToolIDs.contains($0.id) }
+    }
+
+    /// Loans completed before the tool status was updated may still be marked available.
+    private func toolIDsWithCompletedLoans() async -> Set<String> {
+        do {
+            let snapshot = try await database.collection("reservations")
+                .whereField("status", isEqualTo: "completed")
+                .limit(to: 200)
+                .getDocuments(source: .server)
+            return Set(snapshot.documents.compactMap { $0.data()["toolId"] as? String })
+        } catch {
+            return []
+        }
     }
 
     func addTool(_ tool: BorrowingTool) async throws -> String {

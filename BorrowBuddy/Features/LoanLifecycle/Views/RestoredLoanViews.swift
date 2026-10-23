@@ -154,11 +154,15 @@ struct ActiveLoanView: View {
                 }.padding(.horizontal, 18).padding(.vertical, 12)
             }
             if isBorrower {
-                PrimaryButton(title: loan?.lifecycleStage == .active ? "Start return" : "Continue return", systemImage: "arrow.up.circle", enabled: !lifecycle.isLoading) {
+                PrimaryButton(title: (loan?.lifecycleStage ?? lifecycle.stage) == .active ? "Start return" : "Continue return", systemImage: "arrow.up.circle", enabled: !lifecycle.isLoading) {
                     Task {
-                        if lifecycle.stage == .active {
+                        let stage = loan?.lifecycleStage ?? lifecycle.stage
+                        if stage == .active {
+                            lifecycle.configure(reservationID: loan?.id ?? lifecycle.reservationID, stage: .active)
                             if await lifecycle.move(to: .returnTransit, using: dependencies.loanLifecycleRepository) { router.go(to: .toolReturn) }
-                        } else { router.go(to: loan?.lifecycleStage == .returnInspection ? .returnCapture : .toolReturn) }
+                        } else {
+                            router.go(to: stage == .returnInspection ? .returnCapture : .toolReturn)
+                        }
                     }
                 }.padding(.horizontal, 18).padding(.vertical, 12).background(Color.white)
             } else {
