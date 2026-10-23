@@ -87,12 +87,14 @@ final class FirebaseAccountRepository: AccountRepository {
             if let email = user.email {
                 payload["email"] = email
             }
-            // Only seed wallet fields when the document is first created.
+            // Award the starting balance only when this account has never had one.
             let snapshot = try await database.collection("users").document(user.uid).getDocument()
-            if !snapshot.exists {
-                payload["creditBalance"] = 0
+            if snapshot.data()?["creditBalance"] == nil {
+                payload["creditBalance"] = AccountSummary.newAccountCredits
                 payload["creditHeld"] = 0
-                payload["createdAt"] = FieldValue.serverTimestamp()
+                if !snapshot.exists {
+                    payload["createdAt"] = FieldValue.serverTimestamp()
+                }
             }
 
             try await database.collection("users").document(user.uid).setData(payload, merge: true)

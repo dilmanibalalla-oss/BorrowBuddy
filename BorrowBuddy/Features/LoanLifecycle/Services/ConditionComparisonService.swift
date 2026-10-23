@@ -37,13 +37,38 @@ final class VisionConditionComparisonService: ConditionComparisonService {
     }
 
     private static func featurePrint(for image: CGImage) throws -> VNFeaturePrintObservation {
+        let prepared = normalized(image)
         let request = VNGenerateImageFeaturePrintRequest()
-        let handler = VNImageRequestHandler(cgImage: image, options: [:])
+        #if targetEnvironment(simulator)
+        // Revision 2 asks the simulator for an Espresso model it cannot create.
+        // Revision 1 still builds a real Vision feature print and supports computeDistance.
+        request.revision = VNGenerateImageFeaturePrintRequestRevision1
+        request.usesCPUOnly = true
+        #endif
+        let handler = VNImageRequestHandler(cgImage: prepared, options: [:])
         try handler.perform([request])
         guard let observation = request.results?.first as? VNFeaturePrintObservation else {
             throw ConditionComparisonError.featurePrintUnavailable
         }
         return observation
+    }
+
+    /// Vision rejects some JPEG color spaces with an Espresso failure. An 8-bit RGB bitmap is readable on the simulator.
+    private static func normalized(_ image: CGImage) -> CGImage {
+        let width = image.width
+        let height = image.height
+        guard width > 0, height > 0,
+              let context = CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+              ) else { return image }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage() ?? image
     }
 }
 

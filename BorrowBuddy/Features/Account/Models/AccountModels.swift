@@ -6,6 +6,9 @@
 import Foundation
 
 struct AccountSummary: Equatable {
+    /// Credits given once, the first time an account record is created.
+    static let newAccountCredits = 1000
+
     let displayName: String
     let neighborhood: String
     let phoneNumber: String

@@ -276,6 +276,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "BorrowBuddy uses the camera to photograph a tool's condition at pickup and return.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "BorrowBuddy uses Face ID for quick, secure sign-in.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BorrowBuddy uses your location to show tools near your shed.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -322,6 +323,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "BorrowBuddy uses the camera to photograph a tool's condition at pickup and return.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "BorrowBuddy uses Face ID for quick, secure sign-in.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BorrowBuddy uses your location to show tools near your shed.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

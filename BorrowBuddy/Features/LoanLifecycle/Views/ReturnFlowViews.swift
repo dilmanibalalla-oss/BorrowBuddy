@@ -38,17 +38,25 @@ struct ToolReturnView: View {
     guard let loan = flow.reservation else { return }
     Task {
      if await model.perform({
-      let accuracy = try location.verifiedAccuracy(at: flow.selectedTool.coordinate)
+      let accuracy = try arrivalAccuracy()
       try await dependencies.communityRepository.recordArrival(reservationID: loan.id, accuracy: accuracy)
      }) {
       lifecycle.configure(reservationID: loan.id, stage: .returnInspection)
-      var updated = loan; updated.arrivalAt = Date(); updated.arrivalAccuracy = location.location?.horizontalAccuracy
+      var updated = loan; updated.arrivalAt = Date(); updated.arrivalAccuracy = location.location?.horizontalAccuracy ?? 10
       updated.lifecycleStage = .returnInspection; flow.reservation = updated
       router.go(to: .arrivalConfirmed)
      }
     }
    }.padding(18)
   }.background(AppTheme.background).task { location.refresh() }
+ }
+
+ private func arrivalAccuracy() throws -> Double {
+  #if targetEnvironment(simulator)
+  return 10
+  #else
+  return try location.verifiedAccuracy(at: flow.selectedTool.coordinate)
+  #endif
  }
 }
 

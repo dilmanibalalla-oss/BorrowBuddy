@@ -38,6 +38,8 @@ final class FirestoreUserProfileService: UserProfileService {
             throw CommunityError.signInRequired
         }
 
+        let reference = db.collection("users").document(uid)
+        let snapshot = try await reference.getDocument()
         var data: [String: Any] = [
             "shedLocation": location.dictionary
         ]
@@ -47,7 +49,14 @@ final class FirestoreUserProfileService: UserProfileService {
         if let email = Auth.auth().currentUser?.email {
             data["email"] = email
         }
+        if snapshot.data()?["creditBalance"] == nil {
+            data["creditBalance"] = AccountSummary.newAccountCredits
+            data["creditHeld"] = 0
+            if !snapshot.exists {
+                data["createdAt"] = FieldValue.serverTimestamp()
+            }
+        }
 
-        try await db.collection("users").document(uid).setData(data, merge: true)
+        try await reference.setData(data, merge: true)
     }
 }

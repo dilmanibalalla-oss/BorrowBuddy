@@ -60,7 +60,14 @@ struct ReservationPendingView: View {
                     AccountSaveStatus(error: model.error ?? reminder.errorMessage, success: nil)
                 }.padding(.horizontal, 18).padding(.vertical, 8)
             }
-            if let loan, loan.status == .pending {
+            if let loan, loan.status == .active {
+                PrimaryButton(title: "Continue active loan", systemImage: "arrow.right") {
+                    router.go(to: .pickupConfirmed)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .background(Color.white)
+            } else if let loan, loan.status == .pending {
                 VStack(spacing: 10) {
                     if isOwner && !loan.ownerAccepted {
                         PrimaryButton(title: model.isLoading ? "Accepting..." : "Accept request", enabled: !model.isLoading) {
@@ -72,6 +79,10 @@ struct ReservationPendingView: View {
                             }
                         }
                         LoanOutlineButton(title: "Decline & release hold", enabled: !model.isLoading) { confirmCancel = true }
+                    } else if loan.acknowledgements.contains(loan.borrowerID) && loan.acknowledgements.contains(loan.ownerID) {
+                        PrimaryButton(title: "Continue to active loan", systemImage: "arrow.right") {
+                            router.go(to: .pickupConfirmed)
+                        }
                     } else if loan.acknowledgements.contains(dependencies.authenticationService.currentUserID ?? "") {
                         PrimaryButton(title: "Waiting for acknowledgement", enabled: false) {}
                     } else if isOwner {

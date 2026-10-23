@@ -22,7 +22,7 @@ final class DemoAccountRepository: AccountRepository {
             displayName: "Jordan Mitchell",
             neighborhood: "Maple Grove",
             phoneNumber: "+1 555 0100",
-            creditBalance: 120,
+            creditBalance: AccountSummary.newAccountCredits,
             creditHeld: 0
         )
     }
