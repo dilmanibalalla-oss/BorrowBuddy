@@ -63,6 +63,20 @@ struct HomeView: View {
                             Text(model.sectionErrors["Nearby tools"] == nil ? "No nearby tools available yet" : "Unable to load nearby tools. Pull down to retry.").font(.system(size: 12.5)).foregroundStyle(AppTheme.green)
                         }
                     }
+                    if !recentlyAdded.isEmpty {
+                        VStack(alignment: .leading, spacing: 11) {
+                            heading("Recently added")
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(recentlyAdded.prefix(5)) { tool in
+                                        Button {
+                                            dependencies.borrowingFlow.select(tool); router.go(to: .toolDetails)
+                                        } label: { featured(tool) }.buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     VStack(alignment: .leading, spacing: 11) {
                         heading("Recent activity")
                         ForEach(model.ledger.prefix(2)) { entry in
@@ -122,6 +136,9 @@ struct HomeView: View {
             Text(featureDetail(tool)).font(.system(size: 12)).foregroundStyle(AppTheme.secondaryText)
         }.padding(11).frame(width: 162, alignment: .leading).background(Color.white)
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border)).clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+    private var recentlyAdded: [BorrowingTool] {
+        model.nearbyTools.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
     }
     private func featureDetail(_ tool: BorrowingTool) -> String {
         guard let latitude = model.account.latitude, let longitude = model.account.longitude else { return "\(tool.dailyCredits) LC/day" }

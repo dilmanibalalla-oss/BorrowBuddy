@@ -1,6 +1,7 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct ToolEditorView: View {
     let tool: BorrowingTool?
@@ -69,7 +70,14 @@ struct ToolEditorView: View {
             }
             .onChange(of: photoItem) { _, item in
                 Task {
-                    photoData = try? await item?.loadTransferable(type: Data.self)
+                    guard let item else { return }
+                    do {
+                        if let photo = try await item.loadTransferable(type: ListingPhoto.self) {
+                            photoData = photo.data
+                        }
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
                 }
             }
             .onAppear {
@@ -146,6 +154,19 @@ struct ToolEditorView: View {
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct ListingPhoto: Transferable {
+    let data: Data
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(importedContentType: .image) { data in
+            guard let image = UIImage(data: data) else {
+                throw CommunityError.invalidInput("Choose a photo of the tool.")
+            }
+            return ListingPhoto(data: try PhotoEncoding.jpeg(image))
         }
     }
 }

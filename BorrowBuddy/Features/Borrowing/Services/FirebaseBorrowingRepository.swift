@@ -31,10 +31,19 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
 
     func fetchNearbyTools() async throws -> [BorrowingTool] {
         _ = try currentUserID()
-        let snapshot = try await database.collection("tools")
-            .whereField("status", isEqualTo: "available")
-            .limit(to: 30)
-            .getDocuments(source: .server)
+        let snapshot: QuerySnapshot
+        do {
+            snapshot = try await database.collection("tools")
+                .whereField("status", isEqualTo: "available")
+                .order(by: "createdAt", descending: true)
+                .limit(to: 30)
+                .getDocuments(source: .server)
+        } catch {
+            snapshot = try await database.collection("tools")
+                .whereField("status", isEqualTo: "available")
+                .limit(to: 30)
+                .getDocuments(source: .server)
+        }
         let finishedToolIDs = await toolIDsWithCompletedLoans()
         return snapshot.documents.compactMap(makeTool).filter { !finishedToolIDs.contains($0.id) }
     }
@@ -190,7 +199,7 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                         "updatedAt": FieldValue.serverTimestamp()
                     ], forDocument: borrowerReference)
 
-                    transaction.setData([
+                    var reservation: [String: Any] = [
                         "receipt": receipt,
                         "toolId": tool.id,
                         "toolName": toolData["name"] as? String ?? tool.name,
@@ -213,7 +222,14 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                         "acknowledgements": [],
                         "requestedAt": FieldValue.serverTimestamp(),
                         "updatedAt": FieldValue.serverTimestamp()
-                    ], forDocument: reservationReference)
+                    ]
+                    if let imageURL = toolData["imageURL"] as? String, !imageURL.isEmpty {
+                        reservation["imageURL"] = imageURL
+                    }
+                    if let photo = FirestoreModels.photoData(toolData["photoData"]) ?? tool.photoData {
+                        reservation["photoData"] = photo
+                    }
+                    transaction.setData(reservation, forDocument: reservationReference)
                     transaction.updateData([
                         "status": "reserved", "reservationId": reservationReference.documentID,
                         "updatedAt": FieldValue.serverTimestamp()
@@ -260,13 +276,14 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
             imageURL: data["imageURL"] as? String,
             isHighValue: data["isHighValue"] as? Bool ?? false,
             estimatedValue: number(data["estimatedValue"]).intValue,
-            photoData: data["photoData"] as? Data,
-            listingStatus: data["status"] as? String ?? "available"
+            photoData: FirestoreModels.photoData(data["photoData"]),
+            listingStatus: data["status"] as? String ?? "available",
+            createdAt: FirestoreModels.date(data["createdAt"])
         )
     }
 
     private func toolData(_ tool: BorrowingTool) -> [String: Any] {
-        [
+        var data: [String: Any] = [
             "ownerId": tool.ownerID,
             "ownerName": tool.ownerName,
             "ownerRating": tool.ownerRating,
@@ -280,10 +297,13 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
             "location": GeoPoint(latitude: tool.latitude, longitude: tool.longitude),
             "pickupAddress": tool.pickupAddress,
             "imageURL": tool.imageURL ?? NSNull(),
-            "photoData": tool.photoData ?? Data(),
             "isHighValue": tool.isHighValue,
             "estimatedValue": tool.estimatedValue
         ]
+        if let photoData = tool.photoData, !photoData.isEmpty {
+            data["photoData"] = photoData
+        }
+        return data
     }
 
     private func currentUserID() throws -> String {
