@@ -38,6 +38,8 @@ struct RootView: View {
                 ProfileView()
             case .wallet:
                 WalletView()
+            case .calendar:
+                CalendarView()
             case .nearbyMap:
                 NearbyMapView()
             case .toolDetails:

@@ -9,6 +9,14 @@ service cloud.firestore {
       match /walletTransactions/{transactionId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Pickup and return events for the signed-in account.
+      // Document id: {reservationId}_pickup or {reservationId}_return
+      // kind, reservationId, toolName, title, detail, role, occursAt,
+      // address, loanStatus, activityCleared, createdAt, updatedAt
+      match /scheduleEvents/{eventId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }

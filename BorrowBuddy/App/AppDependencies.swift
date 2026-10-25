@@ -57,6 +57,9 @@ final class AppDependencies: ObservableObject {
         Task {
             for await isSignedIn in authenticationService.authenticationStateChanges() {
                 isAuthenticated = isSignedIn
+                if !isSignedIn {
+                    await notificationService.stopWatchingMessages()
+                }
             }
         }
     }
@@ -66,6 +69,8 @@ final class AppDependencies: ObservableObject {
 protocol NotificationService {
     func registerToken() async
     func schedule(for loan: ReservationRecord, preferences: NotificationSettings) async
+    func watchLoanMessages(_ loans: [ReservationRecord]) async
+    func stopWatchingMessages() async
 }
 
 final class LocalNotificationService: NotificationService {
@@ -77,5 +82,13 @@ final class LocalNotificationService: NotificationService {
 
     func schedule(for loan: ReservationRecord, preferences: NotificationSettings) async {
         await loans.schedule(for: loan, preferences: preferences)
+    }
+
+    func watchLoanMessages(_ reservations: [ReservationRecord]) async {
+        loans.watchLoanMessages(reservations)
+    }
+
+    func stopWatchingMessages() async {
+        loans.stopWatchingMessages()
     }
 }

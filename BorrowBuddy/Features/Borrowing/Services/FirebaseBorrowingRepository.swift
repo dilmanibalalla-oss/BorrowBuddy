@@ -31,10 +31,19 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
 
     func fetchNearbyTools() async throws -> [BorrowingTool] {
         _ = try currentUserID()
-        let snapshot = try await database.collection("tools")
-            .whereField("status", isEqualTo: "available")
-            .limit(to: 30)
-            .getDocuments(source: .server)
+        let snapshot: QuerySnapshot
+        do {
+            snapshot = try await database.collection("tools")
+                .whereField("status", isEqualTo: "available")
+                .order(by: "createdAt", descending: true)
+                .limit(to: 30)
+                .getDocuments(source: .server)
+        } catch {
+            snapshot = try await database.collection("tools")
+                .whereField("status", isEqualTo: "available")
+                .limit(to: 30)
+                .getDocuments(source: .server)
+        }
         let finishedToolIDs = await toolIDsWithCompletedLoans()
         return snapshot.documents.compactMap(makeTool).filter { !finishedToolIDs.contains($0.id) }
     }
@@ -81,9 +90,19 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
 
     func createReservation(tool: BorrowingTool, quote: ReservationQuote) async throws -> ReservationRecord {
         let borrowerID = try currentUserID()
+        let calendar = Calendar.current
+        let insideOwnerDates: Bool = {
+            guard let from = tool.availableFrom, let until = tool.availableUntil else { return false }
+            let pickupDay = calendar.startOfDay(for: quote.pickupAt)
+            let returnDay = calendar.startOfDay(for: quote.returnAt)
+            return pickupDay >= calendar.startOfDay(for: from)
+                && returnDay >= pickupDay
+                && returnDay <= calendar.startOfDay(for: until)
+        }()
+        let span = quote.returnAt.timeIntervalSince(quote.pickupAt)
         guard quote.pickupAt > Date(), quote.returnAt > quote.pickupAt,
-              quote.returnAt.timeIntervalSince(quote.pickupAt) <= 14 * 86400 else {
-            throw CommunityError.invalidInput("Choose a future loan window of at most 14 days.")
+              insideOwnerDates || span <= 14 * 86400 else {
+            throw CommunityError.invalidInput("Choose a return date inside the owner's availability.")
         }
 
         let reservationReference = database.collection("reservations").document()
@@ -171,6 +190,16 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                           toolData["status"] as? String == "available" else {
                         throw FirebaseBorrowingError.toolUnavailable
                     }
+                    if let from = FirestoreModels.date(toolData["availableFrom"]),
+                       let until = FirestoreModels.date(toolData["availableUntil"]) {
+                        let calendar = Calendar.current
+                        let pickupDay = calendar.startOfDay(for: quote.pickupAt)
+                        let returnDay = calendar.startOfDay(for: quote.returnAt)
+                        guard pickupDay >= calendar.startOfDay(for: from),
+                              returnDay <= calendar.startOfDay(for: until) else {
+                            throw CommunityError.invalidInput("Choose dates within the owner's availability.")
+                        }
+                    }
                     guard let borrowerData = borrowerSnapshot.data() else {
                         throw FirebaseBorrowingError.profileMissing
                     }
@@ -190,7 +219,7 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                         "updatedAt": FieldValue.serverTimestamp()
                     ], forDocument: borrowerReference)
 
-                    transaction.setData([
+                    var reservation: [String: Any] = [
                         "receipt": receipt,
                         "toolId": tool.id,
                         "toolName": toolData["name"] as? String ?? tool.name,
@@ -213,7 +242,14 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                         "acknowledgements": [],
                         "requestedAt": FieldValue.serverTimestamp(),
                         "updatedAt": FieldValue.serverTimestamp()
-                    ], forDocument: reservationReference)
+                    ]
+                    if let imageURL = toolData["imageURL"] as? String, !imageURL.isEmpty {
+                        reservation["imageURL"] = imageURL
+                    }
+                    if let photo = FirestoreModels.photoData(toolData["photoData"]) ?? tool.photoData {
+                        reservation["photoData"] = photo
+                    }
+                    transaction.setData(reservation, forDocument: reservationReference)
                     transaction.updateData([
                         "status": "reserved", "reservationId": reservationReference.documentID,
                         "updatedAt": FieldValue.serverTimestamp()
@@ -260,13 +296,16 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
             imageURL: data["imageURL"] as? String,
             isHighValue: data["isHighValue"] as? Bool ?? false,
             estimatedValue: number(data["estimatedValue"]).intValue,
-            photoData: data["photoData"] as? Data,
-            listingStatus: data["status"] as? String ?? "available"
+            photoData: FirestoreModels.photoData(data["photoData"]),
+            listingStatus: data["status"] as? String ?? "available",
+            createdAt: FirestoreModels.date(data["createdAt"]),
+            availableFrom: FirestoreModels.date(data["availableFrom"]),
+            availableUntil: FirestoreModels.date(data["availableUntil"])
         )
     }
 
     private func toolData(_ tool: BorrowingTool) -> [String: Any] {
-        [
+        var data: [String: Any] = [
             "ownerId": tool.ownerID,
             "ownerName": tool.ownerName,
             "ownerRating": tool.ownerRating,
@@ -280,10 +319,19 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
             "location": GeoPoint(latitude: tool.latitude, longitude: tool.longitude),
             "pickupAddress": tool.pickupAddress,
             "imageURL": tool.imageURL ?? NSNull(),
-            "photoData": tool.photoData ?? Data(),
             "isHighValue": tool.isHighValue,
             "estimatedValue": tool.estimatedValue
         ]
+        if let photoData = tool.photoData, !photoData.isEmpty {
+            data["photoData"] = photoData
+        }
+        if let availableFrom = tool.availableFrom {
+            data["availableFrom"] = Timestamp(date: availableFrom)
+        }
+        if let availableUntil = tool.availableUntil {
+            data["availableUntil"] = Timestamp(date: availableUntil)
+        }
+        return data
     }
 
     private func currentUserID() throws -> String {

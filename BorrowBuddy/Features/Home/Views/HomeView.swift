@@ -63,6 +63,20 @@ struct HomeView: View {
                             Text(model.sectionErrors["Nearby tools"] == nil ? "No nearby tools available yet" : "Unable to load nearby tools. Pull down to retry.").font(.system(size: 12.5)).foregroundStyle(AppTheme.green)
                         }
                     }
+                    if !recentlyAdded.isEmpty {
+                        VStack(alignment: .leading, spacing: 11) {
+                            heading("Recently added")
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(recentlyAdded.prefix(5)) { tool in
+                                        Button {
+                                            dependencies.borrowingFlow.select(tool); router.go(to: .toolDetails)
+                                        } label: { featured(tool) }.buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     VStack(alignment: .leading, spacing: 11) {
                         heading("Recent activity")
                         ForEach(model.ledger.prefix(2)) { entry in
@@ -70,7 +84,11 @@ struct HomeView: View {
                                 Circle().fill(entry.credits >= 0 ? AppTheme.green : AppTheme.coral).frame(width: 8, height: 8)
                                 Text(entry.detail.isEmpty ? entry.title : entry.detail).font(.system(size: 14)).foregroundStyle(AppTheme.text).lineLimit(1)
                                 Spacer()
-                                Text("\(entry.credits >= 0 ? "+" : "")\(entry.credits) LC").font(.system(size: 13, weight: .semibold, design: .monospaced)).foregroundStyle(entry.credits >= 0 ? AppTheme.green : AppTheme.coral)
+                                if entry.kind == .credit {
+                                    Text("\(entry.credits >= 0 ? "+" : "")\(entry.credits) LC").font(.system(size: 13, weight: .semibold, design: .monospaced)).foregroundStyle(entry.credits >= 0 ? AppTheme.green : AppTheme.coral)
+                                } else {
+                                    Text(entry.kind == .pickup ? "Pickup" : "Return").font(.system(size: 12.5, weight: .bold)).foregroundStyle(AppTheme.blue)
+                                }
                             }.padding(12).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 13))
                         }
                         if model.ledger.isEmpty && !model.isLoading { Text(model.sectionErrors["Wallet activity"] == nil ? "No recent activity" : "Unable to load activity. Pull down to retry.").font(.system(size: 12.5)).foregroundStyle(AppTheme.green) }
@@ -80,7 +98,7 @@ struct HomeView: View {
                 }.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 18)
             }.refreshable { await refreshHome() }
             BorrowingTabBar(selectedTab: 0, onHome: {}, onSearch: { router.go(to: .nearbyMap) },
-                            onWallet: { router.go(to: .wallet) }, onProfile: { router.go(to: .profile) })
+                            onCalendar: { router.go(to: .calendar) }, onProfile: { router.go(to: .profile) })
         }.background(AppTheme.background).ignoresSafeArea(.container, edges: .bottom)
             .task { await refreshHome() }
             .sheet(isPresented: $showToolEditor, onDismiss: { Task { await refreshHome() } }) {
@@ -123,6 +141,9 @@ struct HomeView: View {
         }.padding(11).frame(width: 162, alignment: .leading).background(Color.white)
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border)).clipShape(RoundedRectangle(cornerRadius: 16))
     }
+    private var recentlyAdded: [BorrowingTool] {
+        model.nearbyTools.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+    }
     private func featureDetail(_ tool: BorrowingTool) -> String {
         guard let latitude = model.account.latitude, let longitude = model.account.longitude else { return "\(tool.dailyCredits) LC/day" }
         let meters = CLLocation(latitude: latitude, longitude: longitude).distance(from: CLLocation(latitude: tool.latitude, longitude: tool.longitude))
@@ -130,8 +151,10 @@ struct HomeView: View {
     }
     private func refreshHome() async {
         await model.load(using: dependencies)
-        if let preferences = try? await dependencies.accountRepository.loadNotificationSettings() {
-            for loan in model.loans { await dependencies.notificationService.schedule(for: loan, preferences: preferences) }
+        let preferences = (try? await dependencies.accountRepository.loadNotificationSettings()) ?? .standard
+        for loan in model.loans {
+            await dependencies.notificationService.schedule(for: loan, preferences: preferences)
         }
+        await dependencies.notificationService.watchLoanMessages(model.loans)
     }
 }

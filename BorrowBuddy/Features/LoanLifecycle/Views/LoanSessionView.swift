@@ -36,9 +36,9 @@ struct LoanSessionView<Content: View>: View {
                         if previous?.lifecycleStage != loan.lifecycleStage || previous?.acknowledgements != loan.acknowledgements {
                             await lifecycle.restore(using: dependencies.loanLifecycleRepository)
                         }
-                        if let preferences = try? await dependencies.accountRepository.loadNotificationSettings() {
-                            await dependencies.notificationService.schedule(for: loan, preferences: preferences)
-                        }
+                        let preferences = (try? await dependencies.accountRepository.loadNotificationSettings()) ?? .standard
+                        await dependencies.notificationService.schedule(for: loan, preferences: preferences)
+                        await dependencies.notificationService.watchLoanMessages([loan])
                     }
                 } catch is CancellationError {
                     // Leaving a screen cancels its subscription, not its reservation.

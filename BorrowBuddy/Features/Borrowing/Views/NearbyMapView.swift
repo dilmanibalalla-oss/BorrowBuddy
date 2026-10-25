@@ -136,7 +136,7 @@ struct NearbyMapView: View {
                 selectedTab: 1,
                 onHome: { router.go(to: .home) },
                 onSearch: {},
-                onWallet: { router.go(to: .wallet) },
+                onCalendar: { router.go(to: .calendar) },
                 onProfile: { router.go(to: .profile) }
             )
         }

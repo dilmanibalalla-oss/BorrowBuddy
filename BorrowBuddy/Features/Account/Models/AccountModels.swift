@@ -46,10 +46,33 @@ struct NotificationSettings: Codable, Equatable {
 }
 
 struct WalletEntry: Identifiable, Equatable {
+    enum Kind: String, Equatable {
+        case credit
+        case pickup
+        case `return`
+    }
+
     let id: String
     let title: String
     let detail: String
     let credits: Int
+    var kind: Kind = .credit
+    var recordedAt: Date = .distantPast
+}
+
+struct ScheduleEvent: Identifiable, Equatable {
+    let id: String
+    let kind: WalletEntry.Kind
+    let reservationID: String
+    let title: String
+    let detail: String
+    let occursAt: Date
+    let address: String
+    let loanStatus: String
+
+    var isUpcoming: Bool {
+        occursAt >= Calendar.current.startOfDay(for: Date()) && loanStatus != ReservationStatus.completed.rawValue
+    }
 }
 
 struct CreditPack: Identifiable, Equatable {

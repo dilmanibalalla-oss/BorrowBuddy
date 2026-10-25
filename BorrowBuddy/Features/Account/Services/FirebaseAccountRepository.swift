@@ -45,21 +45,140 @@ final class FirebaseAccountRepository: AccountRepository {
 
     func loadLedger() async throws -> [WalletEntry] {
         let uid = try currentUser().uid
-        let purchases = try await database.collection("users")
-            .document(uid)
+        let user = database.collection("users").document(uid)
+        async let purchases = user
             .collection("walletTransactions")
             .order(by: "createdAt", descending: true)
             .limit(to: 100)
             .getDocuments()
+        async let schedule = user
+            .collection("scheduleEvents")
+            .limit(to: 200)
+            .getDocuments()
 
-        return purchases.documents.map { document in
+        let creditEntries = try await purchases.documents.map { document in
             let data = document.data()
             return WalletEntry(
                 id: document.documentID,
                 title: stringValue(data["title"]) ?? "Wallet transaction",
                 detail: stringValue(data["detail"]) ?? "",
-                credits: number(data["credits"]).intValue
+                credits: number(data["credits"]).intValue,
+                kind: .credit,
+                recordedAt: FirestoreModels.date(data["createdAt"]) ?? .distantPast
             )
+        }
+        let activities = try await schedule.documents.compactMap { document -> WalletEntry? in
+            guard let event = scheduleEvent(id: document.documentID, data: document.data(), includeCleared: false) else {
+                return nil
+            }
+            return WalletEntry(
+                id: event.id,
+                title: event.title,
+                detail: event.detail,
+                credits: 0,
+                kind: event.kind,
+                recordedAt: event.occursAt
+            )
+        }
+        return (creditEntries + activities).sorted { $0.recordedAt > $1.recordedAt }
+    }
+
+    func loadScheduleEvents() async throws -> [ScheduleEvent] {
+        let uid = try currentUser().uid
+        let snapshot = try await database.collection("users")
+            .document(uid)
+            .collection("scheduleEvents")
+            .limit(to: 200)
+            .getDocuments()
+        return snapshot.documents
+            .compactMap { scheduleEvent(id: $0.documentID, data: $0.data(), includeCleared: true) }
+            .sorted { $0.occursAt < $1.occursAt }
+    }
+
+    func syncScheduleEvents(for loans: [ReservationRecord]) async throws {
+        let uid = try currentUser().uid
+        let collection = database.collection("users").document(uid).collection("scheduleEvents")
+        let existingSnapshot = try await collection.getDocuments()
+        var existing: [String: [String: Any]] = [:]
+        for document in existingSnapshot.documents {
+            existing[document.documentID] = document.data()
+        }
+
+        let batch = database.batch()
+        var writes = 0
+        for loan in loans where loan.borrowerID == uid || loan.ownerID == uid {
+            let role = loan.borrowerID == uid ? "borrower" : "owner"
+            for kind in [WalletEntry.Kind.pickup, .return] {
+                let id = "\(loan.id)_\(kind.rawValue)"
+                let occursAt = kind == .pickup ? loan.pickupAt : loan.returnAt
+                let title = "\(kind == .pickup ? "Pickup" : "Return") · \(loan.toolName)"
+                let detail = scheduleDetail(kind: kind, loan: loan, userID: uid)
+                let cancelled = loan.status == .cancelled
+                if let data = existing[id],
+                   scheduleUnchanged(
+                    data,
+                    title: title,
+                    detail: detail,
+                    occursAt: occursAt,
+                    address: loan.pickupAddress,
+                    loanStatus: loan.status.rawValue,
+                    role: role,
+                    cancelled: cancelled
+                   ) {
+                    continue
+                }
+
+                var payload: [String: Any] = [
+                    "kind": kind.rawValue,
+                    "reservationId": loan.id,
+                    "toolName": loan.toolName,
+                    "title": title,
+                    "detail": detail,
+                    "role": role,
+                    "occursAt": Timestamp(date: occursAt),
+                    "address": loan.pickupAddress,
+                    "loanStatus": loan.status.rawValue,
+                    "updatedAt": FieldValue.serverTimestamp()
+                ]
+                if existing[id] == nil {
+                    payload["createdAt"] = FieldValue.serverTimestamp()
+                }
+                let previousDate = existing[id].flatMap { FirestoreModels.date($0["occursAt"]) }
+                let moved = previousDate.map { abs($0.timeIntervalSince(occursAt)) > 60 } ?? false
+                if cancelled || existing[id] == nil || moved {
+                    payload["activityCleared"] = cancelled
+                }
+                batch.setData(payload, forDocument: collection.document(id), merge: true)
+                writes += 1
+            }
+        }
+        guard writes > 0 else { return }
+        do {
+            try await batch.commit()
+        } catch {
+            throw mapFirestoreError(error)
+        }
+    }
+
+    func clearScheduleActivities(ids: [String]) async throws {
+        let unique = Array(Set(ids.filter { !$0.isEmpty }))
+        guard !unique.isEmpty else { return }
+        let uid = try currentUser().uid
+        let collection = database.collection("users").document(uid).collection("scheduleEvents")
+        let batch = database.batch()
+        for id in unique {
+            batch.updateData(
+                [
+                    "activityCleared": true,
+                    "updatedAt": FieldValue.serverTimestamp()
+                ],
+                forDocument: collection.document(id)
+            )
+        }
+        do {
+            try await batch.commit()
+        } catch {
+            throw mapFirestoreError(error)
         }
     }
 
@@ -169,6 +288,77 @@ final class FirebaseAccountRepository: AccountRepository {
         }
     }
 
+    private func scheduleEvent(id: String, data: [String: Any], includeCleared: Bool) -> ScheduleEvent? {
+        guard let kind = WalletEntry.Kind(rawValue: stringValue(data["kind"]) ?? ""),
+              kind == .pickup || kind == .return else {
+            return nil
+        }
+        let status = stringValue(data["loanStatus"]) ?? ReservationStatus.pending.rawValue
+        guard status != ReservationStatus.cancelled.rawValue else { return nil }
+        let cleared = data["activityCleared"] as? Bool ?? false
+        if cleared && !includeCleared { return nil }
+        guard let occursAt = FirestoreModels.date(data["occursAt"]) else { return nil }
+        let fallback = kind == .pickup ? "Pickup" : "Return"
+        return ScheduleEvent(
+            id: id,
+            kind: kind,
+            reservationID: stringValue(data["reservationId"]) ?? "",
+            title: stringValue(data["title"]) ?? fallback,
+            detail: stringValue(data["detail"]) ?? "",
+            occursAt: occursAt,
+            address: stringValue(data["address"]) ?? "",
+            loanStatus: status
+        )
+    }
+
+    private func scheduleDetail(kind: WalletEntry.Kind, loan: ReservationRecord, userID: String) -> String {
+        let isBorrower = loan.borrowerID == userID
+        let other: String
+        if isBorrower {
+            other = loan.ownerName.isEmpty ? "the owner" : loan.ownerName
+        } else {
+            other = loan.borrowerName.isEmpty ? "the borrower" : loan.borrowerName
+        }
+        let action = switch kind {
+        case .pickup:
+            isBorrower ? "Pick up from \(other)" : "\(other) picks up"
+        case .return:
+            isBorrower ? "Return to \(other)" : "\(other) returns"
+        case .credit:
+            loan.toolName
+        }
+        if loan.pickupAddress.isEmpty { return action }
+        return "\(action) · \(loan.pickupAddress)"
+    }
+
+    private func scheduleUnchanged(
+        _ data: [String: Any],
+        title: String,
+        detail: String,
+        occursAt: Date,
+        address: String,
+        loanStatus: String,
+        role: String,
+        cancelled: Bool
+    ) -> Bool {
+        guard sameText(data["title"], title),
+              sameText(data["detail"], detail),
+              sameText(data["address"], address),
+              sameText(data["loanStatus"], loanStatus),
+              sameText(data["role"], role),
+              let previous = FirestoreModels.date(data["occursAt"]),
+              abs(previous.timeIntervalSince(occursAt)) <= 60 else {
+            return false
+        }
+        let cleared = data["activityCleared"] as? Bool ?? false
+        if cancelled { return cleared }
+        return true
+    }
+
+    private func sameText(_ value: Any?, _ expected: String) -> Bool {
+        (stringValue(value) ?? "") == expected
+    }
+
     private func currentUser() throws -> User {
         guard let user = Auth.auth().currentUser else {
             throw CommunityError.signInRequired
@@ -206,7 +396,7 @@ final class FirebaseAccountRepository: AccountRepository {
         if nsError.domain == FirestoreErrorDomain,
            nsError.code == FirestoreErrorCode.permissionDenied.rawValue {
             return CommunityError.invalidInput(
-                "Firestore blocked this save. In Firebase Console → Firestore → Rules, allow signed-in users to read/write their own users/{uid} document."
+                "Firestore blocked this save. In Firebase Console → Firestore → Rules, allow signed-in users to read and write their own users/{uid} document, walletTransactions, and scheduleEvents."
             )
         }
         return error

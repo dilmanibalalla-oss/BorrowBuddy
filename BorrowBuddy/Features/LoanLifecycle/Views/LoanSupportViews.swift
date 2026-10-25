@@ -61,7 +61,16 @@ struct LoanChatView: View {
             .padding(18)
         }
         .background(AppTheme.background)
-        .task(id: loan?.id) { await reload() }
+        .task(id: loan?.id) {
+            guard let id = loan?.id else { return }
+            do {
+                for try await next in dependencies.communityRepository.loanNoteUpdates(reservationID: id) {
+                    notes = next
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     private func reload() async {

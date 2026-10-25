@@ -30,6 +30,9 @@ struct BorrowingTool: Identifiable, Equatable, Hashable {
     let estimatedValue: Int
     var photoData: Data?
     var listingStatus: String
+    var createdAt: Date? = nil
+    var availableFrom: Date? = nil
+    var availableUntil: Date? = nil
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -242,7 +245,7 @@ enum FirestoreModels {
                 imageURL: data["imageURL"] as? String,
                 isHighValue: false,
                 estimatedValue: 0,
-                photoData: nil,
+                photoData: photoData(data["photoData"]),
                 listingStatus: "reserved"
             ),
             arrivalAt: date(data["arrivalAt"]),
@@ -260,5 +263,20 @@ enum FirestoreModels {
     static func date(_ value: Any?) -> Date? {
         if let timestamp = value as? Timestamp { return timestamp.dateValue() }
         return value as? Date
+    }
+
+    static func photoData(_ value: Any?) -> Data? {
+        let bytes: Data?
+        if let data = value as? Data {
+            bytes = data
+        } else if let data = value as? NSData {
+            bytes = data as Data
+        } else if let base64 = value as? String {
+            bytes = Data(base64Encoded: base64)
+        } else {
+            bytes = nil
+        }
+        guard let bytes, !bytes.isEmpty else { return nil }
+        return bytes
     }
 }

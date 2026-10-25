@@ -12,6 +12,7 @@ struct ProfileView: View {
     @StateObject private var viewModel = AccountViewModel()
     @State private var path = NavigationPath()
     @State private var errorMessage: String?
+    @State private var myListings: [BorrowingTool] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,18 +58,22 @@ struct ProfileView: View {
         }
         .task {
             await viewModel.load(using: dependencies.accountRepository)
+            await loadListings()
         }
         .onChange(of: path.count) { _, newCount in
             // Returning from Edit Profile / settings — refresh so Firestore values show.
             if newCount == 0 {
-                Task { await viewModel.load(using: dependencies.accountRepository) }
+                Task {
+                    await viewModel.load(using: dependencies.accountRepository)
+                    await loadListings()
+                }
             }
         }
         BorrowingTabBar(
             selectedTab: 3,
             onHome: { router.go(to: .home) },
             onSearch: { router.go(to: .nearbyMap) },
-            onWallet: { router.go(to: .wallet) },
+            onCalendar: { router.go(to: .calendar) },
             onProfile: {}
         )
         }
@@ -150,16 +155,57 @@ struct ProfileView: View {
             Text("My Listings")
                 .font(AppTheme.rounded(15, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
-            Text("No shared tools yet")
-                .font(.system(size: 12.5))
-                .foregroundStyle(AppTheme.green)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-                .background(Color.white)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 15).stroke(AppTheme.border, lineWidth: 1)
+            if myListings.isEmpty {
+                Text("No shared tools yet")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(AppTheme.green)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.white)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 15).stroke(AppTheme.border, lineWidth: 1)
+                    }
+            } else {
+                ForEach(myListings) { tool in
+                    Button {
+                        dependencies.borrowingFlow.select(tool)
+                        router.go(to: .toolDetails)
+                    } label: {
+                        HStack(spacing: 12) {
+                            CatalogToolArtwork(tool: tool)
+                                .frame(width: 52, height: 52)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(tool.name)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(AppTheme.blue)
+                                Text("\(tool.dailyCredits) LC/day")
+                                    .font(.system(size: 12.5))
+                                    .foregroundStyle(AppTheme.secondaryText)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.white)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 15).stroke(AppTheme.border, lineWidth: 1)
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
+            }
         }
+    }
+
+    private func loadListings() async {
+        guard let userID = dependencies.authenticationService.currentUserID else {
+            myListings = []
+            return
+        }
+        let tools = (try? await dependencies.borrowingRepository.fetchNearbyTools()) ?? []
+        myListings = tools
+            .filter { $0.ownerID == userID }
+            .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
     }
 
     private var accountMenu: some View {

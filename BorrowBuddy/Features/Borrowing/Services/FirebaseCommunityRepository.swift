@@ -163,6 +163,34 @@ final class FirebaseCommunityRepository: CommunityRepository {
         try await reference.updateData(update)
     }
 
+    func loanNoteUpdates(reservationID: String) -> AsyncThrowingStream<[LoanNote], Error> {
+        AsyncThrowingStream { continuation in
+            let listener = database.collection("reservations").document(reservationID)
+                .collection("notes")
+                .order(by: "createdAt")
+                .addSnapshotListener { snapshot, error in
+                    if let error {
+                        continuation.finish(throwing: error)
+                        return
+                    }
+                    let notes = snapshot?.documents.compactMap { document -> LoanNote? in
+                        let data = document.data()
+                        guard let message = data["message"] as? String else { return nil }
+                        return LoanNote(
+                            id: document.documentID,
+                            authorID: data["authorId"] as? String ?? "",
+                            message: message,
+                            createdAt: FirestoreModels.date(data["createdAt"]) ?? Date()
+                        )
+                    } ?? []
+                    continuation.yield(notes)
+                }
+            continuation.onTermination = { _ in
+                listener.remove()
+            }
+        }
+    }
+
     func loanNotes(reservationID: String) async throws -> [LoanNote] {
         _ = try currentUserID()
         let snapshot = try await database.collection("reservations").document(reservationID)

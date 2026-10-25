@@ -22,6 +22,7 @@ enum AppRoute: Equatable {
     case reservationReview
     case reservationPending
     case wallet
+    case calendar
     case profile
     case loanList
     case savedLocation
