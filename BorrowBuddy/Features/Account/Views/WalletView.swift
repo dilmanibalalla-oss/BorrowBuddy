@@ -11,6 +11,7 @@ struct WalletView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = AccountViewModel()
     @State private var showTopUp = false
+    @State private var confirmClearAll = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,21 +39,25 @@ struct WalletView: View {
             .padding(.top, 8)
             .padding(.bottom, 20)
         }
-        .refreshable { await viewModel.load(using: dependencies.accountRepository) }
+        .refreshable { await refreshWallet() }
         .background(AppTheme.background)
         .navigationBarHidden(true)
         .sheet(isPresented: $showTopUp) {
             CreditTopUpView()
         }
-        .task {
-            await viewModel.load(using: dependencies.accountRepository)
+        .confirmationDialog("Clear pickup and return activity?", isPresented: $confirmClearAll, titleVisibility: .visible) {
+            Button("Clear all", role: .destructive) {
+                Task { await clearActivities(activityIDs) }
+            }
+            Button("Cancel", role: .cancel) {}
         }
+        .task { await refreshWallet() }
         if router.route == .wallet {
             BorrowingTabBar(
-                selectedTab: 2,
+                selectedTab: -1,
                 onHome: { router.go(to: .home) },
                 onSearch: { router.go(to: .nearbyMap) },
-                onWallet: {},
+                onCalendar: { router.go(to: .calendar) },
                 onProfile: { router.go(to: .profile) }
             )
         }
@@ -96,11 +101,23 @@ struct WalletView: View {
         .shadow(color: AppTheme.shadow, radius: 0, x: 0, y: 6)
     }
 
+    private var activityIDs: [String] {
+        viewModel.ledger.filter { $0.kind != .credit }.map(\.id)
+    }
+
     private var ledger: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Transaction Ledger")
-                .font(AppTheme.rounded(15, weight: .heavy))
-                .foregroundStyle(AppTheme.blue)
+            HStack {
+                Text("Transaction activity")
+                    .font(AppTheme.rounded(15, weight: .heavy))
+                    .foregroundStyle(AppTheme.blue)
+                Spacer()
+                if !activityIDs.isEmpty {
+                    Button("Clear all") { confirmClearAll = true }
+                        .font(.system(size: 12.5, weight: .bold))
+                        .foregroundStyle(AppTheme.coral)
+                }
+            }
             VStack(spacing: 0) {
                 if viewModel.ledger.isEmpty && !viewModel.isLoading {
                     Text("No wallet activity yet")
@@ -133,13 +150,39 @@ struct WalletView: View {
                 Text(entry.detail)
                     .font(.system(size: 11.5))
                     .foregroundStyle(AppTheme.secondaryText)
+                if entry.kind != .credit && entry.recordedAt != .distantPast {
+                    Text(entry.recordedAt.borrowingDateTime)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(AppTheme.green)
+                }
             }
             Spacer()
-            Text(entry.credits > 0 ? "+\(entry.credits) LC" : "\(entry.credits) LC")
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundStyle(entry.credits >= 0 ? AppTheme.green : AppTheme.coral)
+            if entry.kind == .credit {
+                Text(entry.credits > 0 ? "+\(entry.credits) LC" : "\(entry.credits) LC")
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .foregroundStyle(entry.credits >= 0 ? AppTheme.green : AppTheme.coral)
+            } else {
+                Button("Clear") {
+                    Task { await clearActivities([entry.id]) }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(AppTheme.coral)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear \(entry.title)")
+            }
         }
         .padding(.horizontal, 14)
-        .frame(height: 62)
+        .padding(.vertical, 12)
+    }
+
+    private func refreshWallet() async {
+        if let loans = try? await dependencies.borrowingRepository.fetchMyLoans() {
+            try? await dependencies.accountRepository.syncScheduleEvents(for: loans)
+        }
+        await viewModel.load(using: dependencies.accountRepository)
+    }
+
+    private func clearActivities(_ ids: [String]) async {
+        await viewModel.clearScheduleActivities(ids: ids, using: dependencies.accountRepository)
     }
 }

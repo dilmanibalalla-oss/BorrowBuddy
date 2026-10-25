@@ -31,6 +31,8 @@ struct BorrowingTool: Identifiable, Equatable, Hashable {
     var photoData: Data?
     var listingStatus: String
     var createdAt: Date? = nil
+    var availableFrom: Date? = nil
+    var availableUntil: Date? = nil
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)

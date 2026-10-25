@@ -15,6 +15,10 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>BorrowBuddy adds the dates you set for a listing to your calendar.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>BorrowBuddy adds the dates you set for a listing to your calendar.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>BorrowBuddy uses the camera to photograph a tool’s condition at pickup and return.</string>
 	<key>NSFaceIDUsageDescription</key>

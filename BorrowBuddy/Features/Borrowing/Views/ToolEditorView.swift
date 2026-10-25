@@ -14,6 +14,8 @@ struct ToolEditorView: View {
     @State private var pickupAddress = ""
     @State private var dailyCredits = 8
     @State private var depositCredits = 20
+    @State private var availableFrom = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+    @State private var availableUntil = Calendar.current.date(byAdding: .day, value: 14, to: Calendar.current.startOfDay(for: Date())) ?? Date()
     @State private var photoItem: PhotosPickerItem?
     @State private var photoData: Data?
     @State private var isSaving = false
@@ -53,6 +55,15 @@ struct ToolEditorView: View {
                     field("Condition", text: $condition)
                     field("Pickup address", text: $pickupAddress)
                     field("Details", text: $details)
+                    DatePicker("Available from", selection: $availableFrom, in: Date()..., displayedComponents: .date)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppTheme.blue)
+                    DatePicker("Available until", selection: $availableUntil, in: availableFrom..., displayedComponents: .date)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppTheme.blue)
+                        .onChange(of: availableFrom) { _, from in
+                            if availableUntil < from { availableUntil = from }
+                        }
                     Stepper("Daily price: \(dailyCredits) LC", value: $dailyCredits, in: 1...200)
                     Stepper("Deposit: \(depositCredits) LC", value: $depositCredits, in: 0...500)
                     AccountSaveStatus(error: errorMessage, success: nil)
@@ -90,6 +101,8 @@ struct ToolEditorView: View {
                     dailyCredits = tool.dailyCredits
                     depositCredits = tool.depositCredits
                     photoData = tool.photoData
+                    if let from = tool.availableFrom { availableFrom = from }
+                    if let until = tool.availableUntil { availableUntil = until }
                 }
             }
         }
@@ -98,6 +111,7 @@ struct ToolEditorView: View {
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !pickupAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && Calendar.current.startOfDay(for: availableUntil) >= Calendar.current.startOfDay(for: availableFrom)
     }
 
     private func field(_ title: String, text: Binding<String>) -> some View {
@@ -144,13 +158,23 @@ struct ToolEditorView: View {
                 isHighValue: depositCredits >= 100,
                 estimatedValue: tool?.estimatedValue ?? dailyCredits * 10,
                 photoData: photoData,
-                listingStatus: "available"
+                listingStatus: "available",
+                availableFrom: availableFrom,
+                availableUntil: availableUntil
             )
+            let listingID: String
             if tool == nil || listing.id.isEmpty {
-                _ = try await dependencies.borrowingRepository.addTool(listing)
+                listingID = try await dependencies.borrowingRepository.addTool(listing)
             } else {
                 try await dependencies.borrowingRepository.updateTool(listing)
+                listingID = listing.id
             }
+            try? await dependencies.eventReminderService.addListingWindow(
+                toolID: listingID,
+                name: listing.name,
+                from: availableFrom,
+                until: availableUntil
+            )
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

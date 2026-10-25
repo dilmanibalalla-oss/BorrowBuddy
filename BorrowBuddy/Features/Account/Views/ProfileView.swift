@@ -73,7 +73,7 @@ struct ProfileView: View {
             selectedTab: 3,
             onHome: { router.go(to: .home) },
             onSearch: { router.go(to: .nearbyMap) },
-            onWallet: { router.go(to: .wallet) },
+            onCalendar: { router.go(to: .calendar) },
             onProfile: {}
         )
         }

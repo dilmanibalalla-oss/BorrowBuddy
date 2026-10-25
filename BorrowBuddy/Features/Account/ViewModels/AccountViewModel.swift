@@ -33,4 +33,15 @@ final class AccountViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+
+    func clearScheduleActivities(ids: [String], using repository: AccountRepository) async {
+        let unique = Array(Set(ids.filter { !$0.isEmpty }))
+        guard !unique.isEmpty else { return }
+        do {
+            try await repository.clearScheduleActivities(ids: unique)
+            ledger.removeAll { unique.contains($0.id) }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }

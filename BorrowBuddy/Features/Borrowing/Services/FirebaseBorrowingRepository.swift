@@ -90,9 +90,19 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
 
     func createReservation(tool: BorrowingTool, quote: ReservationQuote) async throws -> ReservationRecord {
         let borrowerID = try currentUserID()
+        let calendar = Calendar.current
+        let insideOwnerDates: Bool = {
+            guard let from = tool.availableFrom, let until = tool.availableUntil else { return false }
+            let pickupDay = calendar.startOfDay(for: quote.pickupAt)
+            let returnDay = calendar.startOfDay(for: quote.returnAt)
+            return pickupDay >= calendar.startOfDay(for: from)
+                && returnDay >= pickupDay
+                && returnDay <= calendar.startOfDay(for: until)
+        }()
+        let span = quote.returnAt.timeIntervalSince(quote.pickupAt)
         guard quote.pickupAt > Date(), quote.returnAt > quote.pickupAt,
-              quote.returnAt.timeIntervalSince(quote.pickupAt) <= 14 * 86400 else {
-            throw CommunityError.invalidInput("Choose a future loan window of at most 14 days.")
+              insideOwnerDates || span <= 14 * 86400 else {
+            throw CommunityError.invalidInput("Choose a return date inside the owner's availability.")
         }
 
         let reservationReference = database.collection("reservations").document()
@@ -179,6 +189,16 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                     guard let toolData = toolSnapshot.data(),
                           toolData["status"] as? String == "available" else {
                         throw FirebaseBorrowingError.toolUnavailable
+                    }
+                    if let from = FirestoreModels.date(toolData["availableFrom"]),
+                       let until = FirestoreModels.date(toolData["availableUntil"]) {
+                        let calendar = Calendar.current
+                        let pickupDay = calendar.startOfDay(for: quote.pickupAt)
+                        let returnDay = calendar.startOfDay(for: quote.returnAt)
+                        guard pickupDay >= calendar.startOfDay(for: from),
+                              returnDay <= calendar.startOfDay(for: until) else {
+                            throw CommunityError.invalidInput("Choose dates within the owner's availability.")
+                        }
                     }
                     guard let borrowerData = borrowerSnapshot.data() else {
                         throw FirebaseBorrowingError.profileMissing
@@ -278,7 +298,9 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
             estimatedValue: number(data["estimatedValue"]).intValue,
             photoData: FirestoreModels.photoData(data["photoData"]),
             listingStatus: data["status"] as? String ?? "available",
-            createdAt: FirestoreModels.date(data["createdAt"])
+            createdAt: FirestoreModels.date(data["createdAt"]),
+            availableFrom: FirestoreModels.date(data["availableFrom"]),
+            availableUntil: FirestoreModels.date(data["availableUntil"])
         )
     }
 
@@ -302,6 +324,12 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
         ]
         if let photoData = tool.photoData, !photoData.isEmpty {
             data["photoData"] = photoData
+        }
+        if let availableFrom = tool.availableFrom {
+            data["availableFrom"] = Timestamp(date: availableFrom)
+        }
+        if let availableUntil = tool.availableUntil {
+            data["availableUntil"] = Timestamp(date: availableUntil)
         }
         return data
     }

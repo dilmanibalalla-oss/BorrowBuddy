@@ -14,17 +14,56 @@ final class BorrowingFlowStore: ObservableObject {
 
     func select(_ tool: BorrowingTool) {
         selectedTool = tool
-        quote = .make(for: tool)
+        let returnDay = tool.availableUntil ?? Self.pickupDate(for: tool).addingTimeInterval(2 * 86_400)
+        quote = Self.quote(for: tool, returnDay: returnDay)
     }
 
     func selectPickupDay(_ date: Date) {
         let calendar = Calendar.current
-        let start = calendar.startOfDay(for: date)
+        let day = calendar.startOfDay(for: date)
+        if let from = selectedTool.availableFrom, day < calendar.startOfDay(for: from) { return }
+        if let until = selectedTool.availableUntil, day > calendar.startOfDay(for: until) { return }
+        let pickupDay = calendar.startOfDay(for: Self.pickupDate(for: selectedTool))
+        guard day >= pickupDay else { return }
+        quote = Self.quote(for: selectedTool, returnDay: day)
+    }
+
+    /// Pickup stays on the owner's start date. The tapped day becomes the return date.
+    private static func quote(for tool: BorrowingTool, returnDay: Date) -> ReservationQuote {
+        let calendar = Calendar.current
+        let pickup = pickupDate(for: tool)
+        let chosen = calendar.startOfDay(for: returnDay)
+        let returning: Date
+        if chosen <= calendar.startOfDay(for: pickup) {
+            returning = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: pickup))?.addingTimeInterval(-60)
+                ?? pickup.addingTimeInterval(3600)
+        } else {
+            returning = chosen
+        }
         let days = max(
             1,
-            calendar.dateComponents([.day], from: calendar.startOfDay(for: quote.pickupAt), to: calendar.startOfDay(for: quote.returnAt)).day ?? 2
+            calendar.dateComponents([.day], from: calendar.startOfDay(for: pickup), to: calendar.startOfDay(for: returning)).day ?? 1
         )
-        quote = .make(for: selectedTool, pickupAt: start, days: days)
+        return ReservationQuote(
+            pickupAt: pickup,
+            returnAt: returning > pickup ? returning : pickup.addingTimeInterval(3600),
+            rentalCredits: tool.dailyCredits * days,
+            serviceCredits: 2,
+            depositCredits: tool.depositCredits
+        )
+    }
+
+    private static func pickupDate(for tool: BorrowingTool) -> Date {
+        let calendar = Calendar.current
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
+        var pickup = tool.availableFrom.map { calendar.startOfDay(for: $0) } ?? tomorrow
+        if let until = tool.availableUntil, pickup > calendar.startOfDay(for: until) {
+            pickup = calendar.startOfDay(for: until)
+        }
+        if pickup <= Date() {
+            pickup = Date().addingTimeInterval(60)
+        }
+        return pickup
     }
 }
 
@@ -59,12 +98,6 @@ final class CommunityViewModel: ObservableObject {
         }
 
         do {
-            ledger = try await dependencies.accountRepository.loadLedger()
-        } catch {
-            sectionErrors["Wallet activity"] = error.localizedDescription
-        }
-
-        do {
             nearbyTools = try await dependencies.borrowingRepository.fetchNearbyTools()
         } catch {
             sectionErrors["Nearby tools"] = error.localizedDescription
@@ -72,8 +105,19 @@ final class CommunityViewModel: ObservableObject {
 
         do {
             loans = try await dependencies.borrowingRepository.fetchMyLoans()
+            do {
+                try await dependencies.accountRepository.syncScheduleEvents(for: loans)
+            } catch {
+                sectionErrors["Schedule"] = error.localizedDescription
+            }
         } catch {
             sectionErrors["Loan history"] = error.localizedDescription
+        }
+
+        do {
+            ledger = try await dependencies.accountRepository.loadLedger()
+        } catch {
+            sectionErrors["Wallet activity"] = error.localizedDescription
         }
     }
 
@@ -107,6 +151,7 @@ protocol CommunityRepository: AnyObject {
     func respondToExtension(reservationID: String, accepted: Bool) async throws
     func postLoanNote(reservationID: String, message: String) async throws
     func loanNotes(reservationID: String) async throws -> [LoanNote]
+    func loanNoteUpdates(reservationID: String) -> AsyncThrowingStream<[LoanNote], Error>
 }
 
 final class DemoCommunityRepository: CommunityRepository {
@@ -122,4 +167,10 @@ final class DemoCommunityRepository: CommunityRepository {
     func respondToExtension(reservationID: String, accepted: Bool) async throws {}
     func postLoanNote(reservationID: String, message: String) async throws {}
     func loanNotes(reservationID: String) async throws -> [LoanNote] { [] }
+    func loanNoteUpdates(reservationID: String) -> AsyncThrowingStream<[LoanNote], Error> {
+        AsyncThrowingStream { continuation in
+            continuation.yield([])
+            continuation.finish()
+        }
+    }
 }

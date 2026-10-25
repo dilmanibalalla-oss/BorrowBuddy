@@ -23,7 +23,7 @@ struct ToolDetailsView: View {
                 .padding(.bottom, 26)
             }
 
-            PrimaryButton(title: tool.ownerID == dependencies.authenticationService.currentUserID ? "Your listing" : "Choose loan dates", enabled: tool.ownerID != dependencies.authenticationService.currentUserID && tool.listingStatus == "available") {
+            PrimaryButton(title: tool.ownerID == dependencies.authenticationService.currentUserID ? "Your listing" : "Choose loan dates", enabled: tool.ownerID != dependencies.authenticationService.currentUserID && tool.listingStatus == "available" && ownerDatesAreOpen) {
                 router.go(to: .reservationReview)
             }
             .padding(.horizontal, 18)
@@ -131,10 +131,28 @@ struct ToolDetailsView: View {
                 .font(AppTheme.rounded(14, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
             BorrowingInfoRow(label: "Pickup", value: tool.pickupAddress, icon: "mappin")
+            if let from = tool.availableFrom, let until = tool.availableUntil {
+                BorrowingInfoRow(
+                    label: "Owner dates",
+                    value: "\(from.formatted(.dateTime.month(.abbreviated).day())) – \(until.formatted(.dateTime.month(.abbreviated).day()))",
+                    icon: "calendar"
+                )
+            }
             BorrowingInfoRow(label: "Next available", value: quote.pickupAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()), icon: "calendar")
-            HStack(spacing: 6) {
-                ForEach(0..<7, id: \.self) { index in
-                    dayCell(index)
+            BorrowingInfoRow(label: "Return", value: quote.returnAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()), icon: "clock")
+            if tool.availableFrom != nil, tool.availableUntil != nil {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(availabilityDays, id: \.timeIntervalSince1970) { date in
+                            dayCell(date, fixedWidth: 44)
+                        }
+                    }
+                }
+            } else {
+                HStack(spacing: 6) {
+                    ForEach(availabilityDays, id: \.timeIntervalSince1970) { date in
+                        dayCell(date, fixedWidth: nil)
+                    }
                 }
             }
         }
@@ -143,10 +161,32 @@ struct ToolDetailsView: View {
         .padding(.top, 13)
     }
 
-    private func dayCell(_ index: Int) -> some View {
+    private var ownerDatesAreOpen: Bool {
+        guard let until = tool.availableUntil else { return true }
+        return Calendar.current.startOfDay(for: until) >= Calendar.current.startOfDay(for: Date())
+    }
+
+    private var availabilityDays: [Date] {
         let calendar = Calendar.current
-        let firstDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
-        let date = calendar.date(byAdding: .day, value: index, to: firstDay) ?? firstDay
+        if let from = tool.availableFrom, let until = tool.availableUntil {
+            let start = calendar.startOfDay(for: from)
+            let end = calendar.startOfDay(for: until)
+            guard start <= end else { return [start] }
+            var days: [Date] = []
+            var cursor = start
+            while cursor <= end, days.count < 31 {
+                days.append(cursor)
+                guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+                cursor = next
+            }
+            return days
+        }
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
+        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: tomorrow) }
+    }
+
+    private func dayCell(_ date: Date, fixedWidth: CGFloat?) -> some View {
+        let calendar = Calendar.current
         let pickupDay = calendar.startOfDay(for: quote.pickupAt)
         let returnDay = calendar.startOfDay(for: quote.returnAt)
         let currentDay = calendar.startOfDay(for: date)
@@ -162,8 +202,8 @@ struct ToolDetailsView: View {
                     .font(.system(size: 13, weight: .bold))
             }
             .foregroundStyle(selected ? AppTheme.blue : AppTheme.green)
-            .frame(maxWidth: .infinity)
-            .frame(height: 45)
+            .frame(maxWidth: fixedWidth == nil ? .infinity : nil)
+            .frame(width: fixedWidth, height: 45)
             .background(selected ? AppTheme.yellow : AppTheme.green.opacity(0.09))
             .overlay {
                 if selected {
@@ -172,7 +212,7 @@ struct ToolDetailsView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Pickup \(date.formatted(date: .abbreviated, time: .omitted))")
+        .accessibilityLabel("Return \(date.formatted(date: .abbreviated, time: .omitted))")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 

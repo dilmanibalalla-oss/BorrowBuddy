@@ -99,18 +99,18 @@ struct BorrowingTabBar: View {
     let selectedTab: Int
     let onHome: () -> Void
     let onSearch: () -> Void
-    let onWallet: () -> Void
+    let onCalendar: () -> Void
     let onProfile: () -> Void
 
     var body: some View {
         HStack {
-            tabButton(index: 0, icon: "house", action: onHome)
+            tabButton(index: 0, icon: "house", label: "Home", action: onHome)
             Spacer()
-            tabButton(index: 1, icon: "magnifyingglass", action: onSearch)
+            tabButton(index: 1, icon: "magnifyingglass", label: "Search", action: onSearch)
             Spacer()
-            tabButton(index: 2, icon: "creditcard", action: onWallet)
+            tabButton(index: 2, icon: "calendar", label: "Calendar", action: onCalendar)
             Spacer()
-            tabButton(index: 3, icon: "person", action: onProfile)
+            tabButton(index: 3, icon: "person", label: "Profile", action: onProfile)
         }
         .padding(.horizontal, 40)
         .padding(.top, 10)
@@ -121,7 +121,7 @@ struct BorrowingTabBar: View {
         }
     }
 
-    private func tabButton(index: Int, icon: String, action: @escaping () -> Void) -> some View {
+    private func tabButton(index: Int, icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 19, weight: .semibold))
@@ -129,6 +129,7 @@ struct BorrowingTabBar: View {
                 .frame(width: 30, height: 30)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
 
