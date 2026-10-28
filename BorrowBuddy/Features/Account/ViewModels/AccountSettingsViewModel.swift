@@ -10,7 +10,7 @@ import Foundation
 final class AccountSettingsViewModel: ObservableObject {
     @Published private(set) var account: AccountSummary?
     @Published var notifications = NotificationSettings.standard
-    @Published var paymentMethod = "Apple Pay"
+    @Published var paymentMethod = "StoreKit 2"
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var successMessage: String?

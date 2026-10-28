@@ -93,29 +93,48 @@ final class CommunityViewModel: ObservableObject {
 
         do {
             account = try await dependencies.accountRepository.loadAccount()
+            dependencies.offlineCache.saveAccount(account)
         } catch {
-            self.error = error.localizedDescription
+            if let cached = dependencies.offlineCache.loadAccount() {
+                account = cached
+            } else {
+                self.error = error.localizedDescription
+            }
         }
 
         do {
             nearbyTools = try await dependencies.borrowingRepository.fetchNearbyTools()
+            dependencies.offlineCache.saveTools(nearbyTools)
         } catch {
-            sectionErrors["Nearby tools"] = error.localizedDescription
+            let cached = dependencies.offlineCache.loadTools()
+            if cached.isEmpty {
+                sectionErrors["Nearby tools"] = error.localizedDescription
+            } else {
+                nearbyTools = cached
+            }
         }
 
         do {
             loans = try await dependencies.borrowingRepository.fetchMyLoans()
+            dependencies.offlineCache.saveLoans(loans)
             do {
                 try await dependencies.accountRepository.syncScheduleEvents(for: loans)
             } catch {
                 sectionErrors["Schedule"] = error.localizedDescription
             }
         } catch {
-            sectionErrors["Loan history"] = error.localizedDescription
+            let cached = dependencies.offlineCache.loadLoans()
+            if cached.isEmpty {
+                sectionErrors["Loan history"] = error.localizedDescription
+            } else {
+                loans = cached
+            }
         }
+        dependencies.syncDropOffRegions(for: loans)
 
         do {
             ledger = try await dependencies.accountRepository.loadLedger()
+            dependencies.offlineCache.saveAccount(account)
         } catch {
             sectionErrors["Wallet activity"] = error.localizedDescription
         }

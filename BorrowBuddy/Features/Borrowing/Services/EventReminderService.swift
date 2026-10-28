@@ -20,8 +20,8 @@ final class EventReminderService {
         }
         event.calendar = calendar
         event.alarms = []
-        event.addAlarm(EKAlarm(relativeOffset: -24 * 60 * 60))
-        event.addAlarm(EKAlarm(relativeOffset: -2 * 60 * 60))
+        event.addAlarm(EKAlarm(relativeOffset: CalendarReminderPolicy.returnDayBefore))
+        event.addAlarm(EKAlarm(relativeOffset: CalendarReminderPolicy.returnTwoHoursBefore))
         try eventStore.save(event, span: .thisEvent)
         if let id = event.eventIdentifier { UserDefaults.standard.set(id, forKey: key) }
     }
@@ -48,7 +48,7 @@ final class EventReminderService {
             throw CommunityError.invalidInput("Add a writable calendar in Settings before saving these dates.")
         }
         event.calendar = destination
-        event.alarms = [EKAlarm(relativeOffset: -3600)]
+        event.alarms = [EKAlarm(relativeOffset: CalendarReminderPolicy.listingHourBefore)]
         try eventStore.save(event, span: .thisEvent)
         if let id = event.eventIdentifier { UserDefaults.standard.set(id, forKey: key) }
     }

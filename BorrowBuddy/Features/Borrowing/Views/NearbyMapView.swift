@@ -239,8 +239,8 @@ struct NearbyMapView: View {
     }
 
     private func reloadMap() async {
-        async let accountLoad: Void = account.load(using: dependencies.accountRepository)
-        async let toolsLoad: Void = viewModel.load(using: dependencies.borrowingRepository)
+        async let accountLoad: Void = account.load(using: dependencies.accountRepository, cache: dependencies.offlineCache)
+        async let toolsLoad: Void = viewModel.load(using: dependencies.borrowingRepository, cache: dependencies.offlineCache)
         _ = await (accountLoad, toolsLoad)
         guard !Task.isCancelled else { return }
         if let latitude = account.account.latitude, let longitude = account.account.longitude {

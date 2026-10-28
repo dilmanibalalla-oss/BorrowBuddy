@@ -17,6 +17,10 @@ protocol AccountRepository: AnyObject {
     func updateNotificationSettings(_ settings: NotificationSettings) async throws
     func loadPreferredPaymentMethod() async throws -> String
     func updatePreferredPaymentMethod(_ method: String) async throws
+    func recordStorePurchase(transactionID: String, productID: String, credits: Int, title: String, detail: String) async throws
+    func activateProMembership(transactionID: String) async throws
+    func setProMembership(active: Bool) async throws
+    func saveIdentityVerification(documentData: Data) async throws
 }
 
 final class DemoAccountRepository: AccountRepository {
@@ -90,7 +94,15 @@ final class DemoAccountRepository: AccountRepository {
 
     func updateNotificationSettings(_ settings: NotificationSettings) async throws {}
 
-    func loadPreferredPaymentMethod() async throws -> String { "Apple Pay" }
+    func loadPreferredPaymentMethod() async throws -> String { "StoreKit 2" }
 
     func updatePreferredPaymentMethod(_ method: String) async throws {}
+
+    func recordStorePurchase(transactionID: String, productID: String, credits: Int, title: String, detail: String) async throws {}
+
+    func activateProMembership(transactionID: String) async throws {}
+
+    func setProMembership(active: Bool) async throws {}
+
+    func saveIdentityVerification(documentData: Data) async throws {}
 }

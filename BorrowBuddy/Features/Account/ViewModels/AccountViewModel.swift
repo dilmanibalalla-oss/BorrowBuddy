@@ -19,7 +19,7 @@ final class AccountViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
-    func load(using repository: AccountRepository) async {
+    func load(using repository: AccountRepository, cache: OfflineCacheStore? = nil) async {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -29,8 +29,14 @@ final class AccountViewModel: ObservableObject {
             async let loadedLedger = repository.loadLedger()
             account = try await loadedAccount
             ledger = try await loadedLedger
+            cache?.saveAccount(account)
         } catch {
-            errorMessage = error.localizedDescription
+            if let cached = cache?.loadAccount() {
+                account = cached
+                errorMessage = "Showing your saved wallet while you're offline."
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

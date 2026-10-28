@@ -54,7 +54,7 @@ final class LoanLifecycleViewModel: ObservableObject {
         let angle = EvidenceAngle.allCases[photos.count]
         do {
             let photo = try photoStore.save(
-                image,
+                EvidencePhotoStamp.apply(to: image),
                 reservationID: reservationID,
                 phase: phase,
                 angle: angle
