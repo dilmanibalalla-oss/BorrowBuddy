@@ -1,3 +1,4 @@
+import _LocationEssentials
 #if canImport(FirebaseAuth) && canImport(FirebaseFirestore)
 import FirebaseAuth
 import FirebaseFirestore
@@ -171,3 +172,4 @@ final class FirebaseCommunityRepository: CommunityRepository {
     }
 }
 #endif
+

@@ -1,3 +1,4 @@
+import _LocationEssentials
 import SwiftUI
 
 struct ToolDetailsView: View {
@@ -196,3 +197,4 @@ struct ToolDetailsView: View {
         .padding(.top, 13)
     }
 }
+

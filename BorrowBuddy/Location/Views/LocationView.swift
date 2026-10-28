@@ -1,3 +1,4 @@
+import _LocationEssentials
 import SwiftUI
 
 struct LocationView: View {
@@ -137,3 +138,4 @@ struct LocationView: View {
             .clipShape(RoundedRectangle(cornerRadius: 11))
     }
 }
+

@@ -3,6 +3,7 @@
 //  BorrowBuddy
 //
 
+import _LocationEssentials
 import FirebaseAuth
 import FirebaseFirestore
 import Foundation

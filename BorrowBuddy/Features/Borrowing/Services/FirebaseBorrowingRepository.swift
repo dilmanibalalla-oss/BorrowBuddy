@@ -1,3 +1,4 @@
+import _LocationEssentials
 #if canImport(FirebaseAuth) && canImport(FirebaseFirestore)
 import FirebaseAuth
 import FirebaseFirestore
@@ -284,3 +285,4 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
     }
 }
 #endif
+

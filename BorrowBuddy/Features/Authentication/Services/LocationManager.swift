@@ -3,6 +3,7 @@
 //  BorrowBuddy
 //
 
+import _LocationEssentials
 import Combine
 import CoreLocation
 import Foundation
@@ -289,3 +290,4 @@ extension LocationManager: CLLocationManagerDelegate {
         }
     }
 }
+

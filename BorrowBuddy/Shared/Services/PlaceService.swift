@@ -1,3 +1,4 @@
+import _LocationEssentials
 import CoreLocation
 import Combine
 import Foundation

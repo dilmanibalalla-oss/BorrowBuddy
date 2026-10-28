@@ -1,3 +1,4 @@
+import _LocationEssentials
 import MapKit
 import SwiftUI
 
@@ -263,3 +264,4 @@ struct NearbyMapView: View {
         }
     }
 }
+

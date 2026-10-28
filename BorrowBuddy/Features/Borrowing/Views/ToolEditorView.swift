@@ -1,3 +1,4 @@
+import _LocationEssentials
 import PhotosUI
 import SwiftUI
 import UIKit
@@ -149,3 +150,4 @@ struct ToolEditorView: View {
         }
     }
 }
+
