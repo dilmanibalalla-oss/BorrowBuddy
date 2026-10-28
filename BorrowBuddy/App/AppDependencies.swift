@@ -4,6 +4,7 @@
 //
 
 import Combine
+import CoreLocation
 import Foundation
 
 @MainActor
@@ -19,10 +20,16 @@ final class AppDependencies: ObservableObject {
     let loanLifecycle: LoanLifecycleViewModel
     let loanLifecycleRepository: LoanLifecycleRepository
     let conditionComparisonService: ConditionComparisonService
+    let storePurchases: StorePurchaseService
+    let offlineCache: OfflineCacheStore
+    let connectivity: ConnectivityMonitor
+    let dropOffMonitor: DropOffGeofenceMonitor
 
     @Published var verificationID: String?
     @Published var verificationPhoneNumber = ""
     @Published var isAuthenticated = false
+
+    private var cancellables: Set<AnyCancellable> = []
 
     /// Held after email signup so Face ID can store credentials for later unlock.
     var pendingCredentials: StoredCredentials?
@@ -51,16 +58,79 @@ final class AppDependencies: ObservableObject {
         self.loanLifecycle = loanLifecycle ?? LoanLifecycleViewModel()
         self.loanLifecycleRepository = loanLifecycleRepository ?? FirebaseLoanLifecycleRepository()
         self.conditionComparisonService = conditionComparisonService ?? VisionConditionComparisonService()
+        self.storePurchases = StorePurchaseService()
+        self.offlineCache = OfflineCacheStore()
+        self.connectivity = ConnectivityMonitor()
+        self.dropOffMonitor = DropOffGeofenceMonitor()
+        connectivity.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        connectivity.start()
     }
 
     func observeAuthentication() {
         Task {
             for await isSignedIn in authenticationService.authenticationStateChanges() {
                 isAuthenticated = isSignedIn
-                if !isSignedIn {
+                if isSignedIn {
+                    await storePurchases.processUnfinishedTransactions(using: accountRepository)
+                } else {
                     await notificationService.stopWatchingMessages()
                 }
             }
+        }
+    }
+
+    func syncDropOffRegions(for loans: [ReservationRecord]) {
+        dropOffMonitor.sync(loans: loans, borrowerID: authenticationService.currentUserID)
+    }
+
+    func handleDropOff(reservationID: String, location: CLLocation?, router: AppRouter) async {
+        let busy: Set<AppRoute> = [.returnCapture, .compareCondition, .ownerReview, .loanCompleted, .loanRating]
+        guard !busy.contains(router.route) else { return }
+        guard let userID = authenticationService.currentUserID,
+              var loan = try? await borrowingRepository.fetchReservation(id: reservationID),
+              loan.borrowerID == userID,
+              loan.status == .active else {
+            return
+        }
+
+        var confirmed = false
+        if let location, loan.lifecycleStage == .active || loan.lifecycleStage == .returnTransit {
+            let target = CLLocation(latitude: loan.toolSnapshot.latitude, longitude: loan.toolSnapshot.longitude)
+            let distance = location.distance(from: target)
+            let age = max(0, Date().timeIntervalSince(location.timestamp))
+            confirmed = LoanRules.canVerifyArrival(
+                distance: distance,
+                accuracy: location.horizontalAccuracy,
+                age: age
+            )
+            if confirmed {
+                try? await communityRepository.recordArrival(
+                    reservationID: loan.id,
+                    accuracy: location.horizontalAccuracy
+                )
+                if let updated = try? await borrowingRepository.fetchReservation(id: loan.id) {
+                    loan = updated
+                }
+            }
+        }
+
+        apply(loan)
+        if confirmed {
+            router.go(to: .arrivalConfirmed)
+            await notificationService.deliver(
+                title: "Drop-off area reached",
+                body: "You're inside the 50 m return area for \(loan.toolName). The return check is ready."
+            )
+        } else if loan.lifecycleStage == .active || loan.lifecycleStage == .returnTransit {
+            router.go(to: .toolReturn)
+            await notificationService.deliver(
+                title: "Start the return check",
+                body: "You're near the drop-off for \(loan.toolName). Confirm arrival to begin inspection."
+            )
         }
     }
 
@@ -71,6 +141,7 @@ protocol NotificationService {
     func schedule(for loan: ReservationRecord, preferences: NotificationSettings) async
     func watchLoanMessages(_ loans: [ReservationRecord]) async
     func stopWatchingMessages() async
+    func deliver(title: String, body: String) async
 }
 
 final class LocalNotificationService: NotificationService {
@@ -90,5 +161,9 @@ final class LocalNotificationService: NotificationService {
 
     func stopWatchingMessages() async {
         loans.stopWatchingMessages()
+    }
+
+    func deliver(title: String, body: String) async {
+        await loans.deliver(title: title, body: body)
     }
 }

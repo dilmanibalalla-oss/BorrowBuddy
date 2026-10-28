@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PrimaryButton: View {
     let title: String
@@ -7,7 +8,10 @@ struct PrimaryButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            action()
+        } label: {
             HStack(spacing: 8) {
                 if let systemImage {
                     Image(systemName: systemImage)

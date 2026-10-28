@@ -105,6 +105,8 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
             throw CommunityError.invalidInput("Choose a return date inside the owner's availability.")
         }
 
+        try await enforceBorrowEligibility(borrowerID: borrowerID, tool: tool)
+
         let reservationReference = database.collection("reservations").document()
         let receipt = "LC-\(reservationReference.documentID.prefix(5).uppercased())"
 
@@ -168,6 +170,25 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
             continuation.onTermination = { _ in
                 listener.remove()
             }
+        }
+    }
+
+    private func enforceBorrowEligibility(borrowerID: String, tool: BorrowingTool) async throws {
+        let snapshot = try await database.collection("users").document(borrowerID).getDocument()
+        let data = snapshot.data() ?? [:]
+        let isPro = data["isPro"] as? Bool ?? false
+        let identityVerified = data["identityVerified"] as? Bool ?? false
+        let addressConfirmed = data["addressConfirmed"] as? Bool ?? false
+        if tool.isHighValue && !MembershipPolicy.canBorrowHighValueTool(
+            identityVerified: identityVerified,
+            addressConfirmed: addressConfirmed
+        ) {
+            throw CommunityError.invalidInput("Verify your ID and confirm your address before borrowing a high-value tool.")
+        }
+        guard !isPro else { return }
+        let openBorrowCount = try await fetchMyLoans().filter { $0.borrowerID == borrowerID && $0.isOpen }.count
+        guard MembershipPolicy.canStartAnotherBorrow(openBorrowCount: openBorrowCount, isPro: false) else {
+            throw CommunityError.invalidInput("BorrowBuddy Pro is required to borrow more than one tool at a time.")
         }
     }
 

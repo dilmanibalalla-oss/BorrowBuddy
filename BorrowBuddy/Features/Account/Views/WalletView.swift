@@ -42,7 +42,9 @@ struct WalletView: View {
         .refreshable { await refreshWallet() }
         .background(AppTheme.background)
         .navigationBarHidden(true)
-        .sheet(isPresented: $showTopUp) {
+        .sheet(isPresented: $showTopUp, onDismiss: {
+            Task { await refreshWallet() }
+        }) {
             CreditTopUpView()
         }
         .confirmationDialog("Clear pickup and return activity?", isPresented: $confirmClearAll, titleVisibility: .visible) {
@@ -82,6 +84,11 @@ struct WalletView: View {
                 Text("LendCredits (LC)")
                     .font(AppTheme.rounded(17, weight: .bold))
                     .foregroundStyle(AppTheme.green)
+            }
+            if viewModel.account.isPro {
+                Text("BorrowBuddy Pro")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(AppTheme.blue)
             }
             if viewModel.account.creditHeld > 0 {
                 Text("\(viewModel.account.creditHeld) LC currently held for reservations")
@@ -179,7 +186,7 @@ struct WalletView: View {
         if let loans = try? await dependencies.borrowingRepository.fetchMyLoans() {
             try? await dependencies.accountRepository.syncScheduleEvents(for: loans)
         }
-        await viewModel.load(using: dependencies.accountRepository)
+        await viewModel.load(using: dependencies.accountRepository, cache: dependencies.offlineCache)
     }
 
     private func clearActivities(_ ids: [String]) async {

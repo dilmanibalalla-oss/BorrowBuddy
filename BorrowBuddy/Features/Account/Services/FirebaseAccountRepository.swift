@@ -39,7 +39,10 @@ final class FirebaseAccountRepository: AccountRepository {
                 ?? "",
             postalCode: stringValue(shed?["postalCode"])
                 ?? stringValue(address?["postalCode"])
-                ?? ""
+                ?? "",
+            identityVerified: data["identityVerified"] as? Bool ?? false,
+            addressConfirmed: data["addressConfirmed"] as? Bool ?? false,
+            isPro: data["isPro"] as? Bool ?? false
         )
     }
 
@@ -270,7 +273,7 @@ final class FirebaseAccountRepository: AccountRepository {
     func loadPreferredPaymentMethod() async throws -> String {
         let userID = try currentUser().uid
         let snapshot = try await database.collection("users").document(userID).getDocument()
-        return stringValue(snapshot.data()?["preferredPaymentMethod"]) ?? "Apple Pay"
+        return stringValue(snapshot.data()?["preferredPaymentMethod"]) ?? "StoreKit 2"
     }
 
     func updatePreferredPaymentMethod(_ method: String) async throws {
@@ -285,6 +288,135 @@ final class FirebaseAccountRepository: AccountRepository {
             )
         } catch {
             throw mapFirestoreError(error)
+        }
+    }
+
+    func recordStorePurchase(
+        transactionID: String,
+        productID: String,
+        credits: Int,
+        title: String,
+        detail: String
+    ) async throws {
+        guard credits > 0, !transactionID.isEmpty else {
+            throw CommunityError.invalidInput("This purchase could not be applied.")
+        }
+        let userID = try currentUser().uid
+        let userReference = database.collection("users").document(userID)
+        let purchaseReference = userReference.collection("walletTransactions").document(transactionID)
+        try await commitTransaction { transaction in
+            let existing = try transaction.getDocument(purchaseReference)
+            guard !existing.exists else { return }
+            let userSnapshot = try transaction.getDocument(userReference)
+            let balance = self.number(userSnapshot.data()?["creditBalance"]).intValue
+            transaction.setData(
+                [
+                    "creditBalance": balance + credits,
+                    "updatedAt": FieldValue.serverTimestamp()
+                ],
+                forDocument: userReference,
+                merge: true
+            )
+            transaction.setData(
+                [
+                    "title": title,
+                    "detail": detail,
+                    "credits": credits,
+                    "productID": productID,
+                    "source": "storekit2",
+                    "createdAt": FieldValue.serverTimestamp()
+                ],
+                forDocument: purchaseReference
+            )
+        }
+    }
+
+    func activateProMembership(transactionID: String) async throws {
+        let userID = try currentUser().uid
+        let userReference = database.collection("users").document(userID)
+        let welcomeReference = userReference.collection("walletTransactions").document("pro-welcome")
+        try await commitTransaction { transaction in
+            let userSnapshot = try transaction.getDocument(userReference)
+            let welcome = try transaction.getDocument(welcomeReference)
+            var userUpdate: [String: Any] = [
+                "isPro": true,
+                "proTransactionID": transactionID,
+                "updatedAt": FieldValue.serverTimestamp()
+            ]
+            if !welcome.exists {
+                let balance = self.number(userSnapshot.data()?["creditBalance"]).intValue
+                let welcomeCredits = MembershipPolicy.proWelcomeCredits
+                userUpdate["creditBalance"] = balance + welcomeCredits
+                userUpdate["proWelcomeGranted"] = true
+                transaction.setData(
+                    [
+                        "title": "Pro welcome pack",
+                        "detail": "BorrowBuddy Pro · 10 LendCredits",
+                        "credits": welcomeCredits,
+                        "productID": StoreCatalog.proMonthlyProductID,
+                        "source": "storekit2",
+                        "createdAt": FieldValue.serverTimestamp()
+                    ],
+                    forDocument: welcomeReference
+                )
+            }
+            transaction.setData(userUpdate, forDocument: userReference, merge: true)
+        }
+    }
+
+    func setProMembership(active: Bool) async throws {
+        let userID = try currentUser().uid
+        do {
+            try await database.collection("users").document(userID).setData(
+                [
+                    "isPro": active,
+                    "updatedAt": FieldValue.serverTimestamp()
+                ],
+                merge: true
+            )
+        } catch {
+            throw mapFirestoreError(error)
+        }
+    }
+
+    func saveIdentityVerification(documentData: Data) async throws {
+        guard documentData.count <= 600_000 else {
+            throw CommunityError.invalidInput("Choose a smaller photo of your ID.")
+        }
+        let userID = try currentUser().uid
+        do {
+            try await database.collection("users").document(userID).setData(
+                [
+                    "identityVerified": true,
+                    "addressConfirmed": true,
+                    "idDocumentData": documentData,
+                    "identityVerifiedAt": FieldValue.serverTimestamp(),
+                    "updatedAt": FieldValue.serverTimestamp()
+                ],
+                merge: true
+            )
+        } catch {
+            throw mapFirestoreError(error)
+        }
+    }
+
+    private func commitTransaction(_ updates: @escaping (Transaction) throws -> Void) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            database.runTransaction({ transaction, errorPointer in
+                do {
+                    try updates(transaction)
+                    return nil
+                } catch {
+                    errorPointer?.pointee = error as NSError
+                    return nil
+                }
+            }, completion: { _, error in
+                if let error {
+                    continuation.resume(throwing: self.mapFirestoreError(error))
+                } else {
+                    continuation.resume(returning: ())
+                }
+            })
         }
     }
 

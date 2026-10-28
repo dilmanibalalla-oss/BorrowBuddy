@@ -58,7 +58,7 @@ final class NearbyMapViewModel: ObservableObject {
             .distance(from: CLLocation(latitude: tool.latitude, longitude: tool.longitude))
     }
 
-    func load(using repository: BorrowingRepository) async {
+    func load(using repository: BorrowingRepository, cache: OfflineCacheStore? = nil) async {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
@@ -67,11 +67,19 @@ final class NearbyMapViewModel: ObservableObject {
             let loadedTools = try await repository.fetchNearbyTools()
             try Task.checkCancellation()
             tools = loadedTools
+            cache?.saveTools(loadedTools)
             hasLoaded = true
         } catch is CancellationError {
             // Leaving the map should not produce a failed-load warning.
         } catch {
-            errorMessage = error.localizedDescription
+            let cached = cache?.loadTools() ?? []
+            if cached.isEmpty {
+                errorMessage = error.localizedDescription
+            } else {
+                tools = cached
+                errorMessage = "Showing saved tools while you're offline."
+            }
+            hasLoaded = true
         }
     }
 }

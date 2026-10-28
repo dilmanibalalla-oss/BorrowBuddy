@@ -20,6 +20,9 @@ struct AccountSummary: Equatable {
     var streetAddress: String = ""
     var unit: String = ""
     var postalCode: String = ""
+    var identityVerified: Bool = false
+    var addressConfirmed: Bool = false
+    var isPro: Bool = false
 }
 
 struct NotificationSettings: Codable, Equatable {
@@ -83,6 +86,15 @@ struct CreditPack: Identifiable, Equatable {
 
     static let starter = CreditPack(id: "starter", title: "Starter Pack", credits: 50, price: 5)
     static let builder = CreditPack(id: "builder", title: "Builder Bundle", credits: 150, price: 12)
+
+    var productID: String {
+        switch id {
+        case Self.builder.id:
+            return StoreCatalog.builderProductID
+        default:
+            return StoreCatalog.starterProductID
+        }
+    }
 }
 
 enum AccountDestination: Hashable {
@@ -92,4 +104,5 @@ enum AccountDestination: Hashable {
     case wallet
     case creditTopUp
     case loanProtection
+    case identityVerification
 }

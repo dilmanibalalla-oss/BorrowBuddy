@@ -8,6 +8,21 @@ struct ToolDetailsView: View {
     private var tool: BorrowingTool { flow.selectedTool }
     private var quote: ReservationQuote { flow.quote }
 
+    @State private var account = AccountSummary(
+        displayName: "",
+        neighborhood: "",
+        phoneNumber: "",
+        creditBalance: 0,
+        creditHeld: 0
+    )
+
+    private var needsIdentity: Bool {
+        tool.isHighValue && !MembershipPolicy.canBorrowHighValueTool(
+            identityVerified: account.identityVerified,
+            addressConfirmed: account.addressConfirmed
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
@@ -18,12 +33,20 @@ struct ToolDetailsView: View {
                     ownerCard
                     availabilityCard
                     holdNotice
+                    if needsIdentity {
+                        AccountNotice(
+                            icon: "person.text.rectangle",
+                            title: "Verification required",
+                            message: "Upload an ID and confirm your address in Profile before borrowing this high-value tool."
+                        )
+                        .padding(.top, 12)
+                    }
                 }
                 .padding(.horizontal, 18)
                 .padding(.bottom, 26)
             }
 
-            PrimaryButton(title: tool.ownerID == dependencies.authenticationService.currentUserID ? "Your listing" : "Choose loan dates", enabled: tool.ownerID != dependencies.authenticationService.currentUserID && tool.listingStatus == "available" && ownerDatesAreOpen) {
+            PrimaryButton(title: tool.ownerID == dependencies.authenticationService.currentUserID ? "Your listing" : "Choose loan dates", enabled: tool.ownerID != dependencies.authenticationService.currentUserID && tool.listingStatus == "available" && ownerDatesAreOpen && !needsIdentity) {
                 router.go(to: .reservationReview)
             }
             .padding(.horizontal, 18)
@@ -31,6 +54,9 @@ struct ToolDetailsView: View {
             .background(Color.white)
         }
         .background(AppTheme.background)
+        .task {
+            account = (try? await dependencies.accountRepository.loadAccount()) ?? account
+        }
     }
 
     private var header: some View {

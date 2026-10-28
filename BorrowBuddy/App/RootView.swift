@@ -3,6 +3,7 @@
 //  BorrowBuddy
 //
 
+import CoreLocation
 import SwiftUI
 
 struct RootView: View {
@@ -85,6 +86,30 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: router.route)
+        .safeAreaInset(edge: .top) {
+            if !dependencies.connectivity.isOnline {
+                Text("You're offline. Saved profile, tools, and loans are still available.")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.blue)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .background(AppTheme.yellow)
+                    .accessibilityLabel("Offline. Showing saved information.")
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .dropOffRegionEntered)) { notification in
+            let info = notification.userInfo ?? [:]
+            guard let reservationID = info["reservationID"] as? String else { return }
+            let location = info["location"] as? CLLocation
+            Task {
+                await dependencies.handleDropOff(
+                    reservationID: reservationID,
+                    location: location,
+                    router: router
+                )
+            }
+        }
         .task(id: dependencies.isAuthenticated) {
             await reconcileAuthState()
         }

@@ -23,7 +23,13 @@
 	<string>BorrowBuddy uses the camera to photograph a tool’s condition at pickup and return.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>BorrowBuddy uses Face ID for quick, secure sign-in.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>BorrowBuddy watches a 50 meter drop-off area so the return check can start when you arrive with the tool.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>BorrowBuddy uses your location to show tools near your shed.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 </dict>
 </plist>

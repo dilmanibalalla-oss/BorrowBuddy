@@ -1,0 +1,88 @@
+{
+  "identifier" : "BorrowBuddyProducts",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "5.00",
+      "familyShareable" : false,
+      "internalID" : "STARTER",
+      "localizations" : [
+        {
+          "description" : "50 LendCredits added to your wallet after StoreKit verifies the purchase.",
+          "displayName" : "Starter Pack",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.toolpool.BorrowBuddy.credits.starter",
+      "referenceName" : "Starter Pack",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "12.00",
+      "familyShareable" : false,
+      "internalID" : "BUILDER",
+      "localizations" : [
+        {
+          "description" : "150 LendCredits added to your wallet after StoreKit verifies the purchase.",
+          "displayName" : "Builder Bundle",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.toolpool.BorrowBuddy.credits.builder",
+      "referenceName" : "Builder Bundle",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "PROGROUP",
+      "localizations" : [
+
+      ],
+      "name" : "BorrowBuddy Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "PROMONTHLY",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Borrow more than one tool at a time and receive a one-time 10 LendCredit welcome pack.",
+              "displayName" : "BorrowBuddy Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.toolpool.BorrowBuddy.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "BorrowBuddy Pro Monthly",
+          "subscriptionGroupID" : "PROGROUP",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

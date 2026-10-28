@@ -14,7 +14,7 @@ import FirebaseFirestore
 final class LoanNotificationService {
     func schedule(for loan: ReservationRecord, preferences: NotificationSettings) async {
         let center = UNUserNotificationCenter.current()
-        let ids = ["pickup", "return-day", "return-hour", "due"].map { "loan-\(loan.id)-\($0)" }
+        let ids = ["pickup", "return-day", "return-hour", "due", "overdue", "grace-ended"].map { "loan-\(loan.id)-\($0)" }
         center.removePendingNotificationRequests(withIdentifiers: ids)
         guard loan.isOpen else { return }
         #if canImport(FirebaseAuth)
@@ -31,11 +31,11 @@ final class LoanNotificationService {
             await add(id: ids[0], title: "Pickup reminder", body: loan.toolName, at: loan.pickupAt.addingTimeInterval(-3600))
         }
         if loan.status == .active && loan.lifecycleStage != .awaitingReview && preferences.returnReminders {
-            await add(id: ids[1], title: "Return due tomorrow", body: loan.toolName, at: loan.returnAt.addingTimeInterval(-86400))
-            await add(id: ids[2], title: "Return due in two hours", body: loan.toolName, at: loan.returnAt.addingTimeInterval(-7200))
-        }
-        if isBorrower && loan.status == .active && loan.lifecycleStage != .awaitingReview && preferences.returnReminders {
-            await add(id: ids[3], title: "Return due", body: "\(loan.toolName) is due.", at: loan.returnAt)
+            for reminder in ReturnReminderSchedule.borrowerReturnReminders(returnAt: loan.returnAt) {
+                let body = reminder.suffix == "due" ? "\(loan.toolName) is due." : loan.toolName
+                let index = ["return-day", "return-hour", "due", "overdue", "grace-ended"].firstIndex(of: reminder.suffix) ?? 0
+                await add(id: ids[index + 1], title: reminder.title, body: body, at: reminder.fireAt)
+            }
         }
     }
 
@@ -112,6 +112,10 @@ final class LoanNotificationService {
         content.title = title; content.body = body; content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, date.timeIntervalSinceNow), repeats: false)
         try? await UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+    }
+
+    func deliver(title: String, body: String) async {
+        await present(title: title, body: body)
     }
 
     func registerToken(_ token: String? = nil) async {

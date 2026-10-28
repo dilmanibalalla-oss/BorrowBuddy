@@ -35,7 +35,7 @@ struct ProfileView: View {
                 .padding(.bottom, 20)
             }
             .refreshable {
-                await viewModel.load(using: dependencies.accountRepository)
+                await viewModel.load(using: dependencies.accountRepository, cache: dependencies.offlineCache)
             }
             .background(AppTheme.background)
             .navigationBarHidden(true)
@@ -53,18 +53,20 @@ struct ProfileView: View {
                     CreditTopUpView()
                 case .loanProtection:
                     LoanProtectionView()
+                case .identityVerification:
+                    IdentityVerificationView()
                 }
             }
         }
         .task {
-            await viewModel.load(using: dependencies.accountRepository)
+            await viewModel.load(using: dependencies.accountRepository, cache: dependencies.offlineCache)
             await loadListings()
         }
         .onChange(of: path.count) { _, newCount in
             // Returning from Edit Profile / settings — refresh so Firestore values show.
             if newCount == 0 {
                 Task {
-                    await viewModel.load(using: dependencies.accountRepository)
+                    await viewModel.load(using: dependencies.accountRepository, cache: dependencies.offlineCache)
                     await loadListings()
                 }
             }
@@ -218,6 +220,12 @@ struct ProfileView: View {
                 menuRow("Edit Profile", icon: "person", destination: .editProfile)
                 Divider()
                 menuRow("Wallet", icon: "creditcard.fill", destination: .wallet)
+                Divider()
+                menuRow(
+                    viewModel.account.identityVerified ? "Identity verified" : "Identity Verification",
+                    icon: "person.text.rectangle",
+                    destination: .identityVerification
+                )
                 Divider()
                 menuRow("Notification Preferences", icon: "bell", destination: .notifications)
                 Divider()
