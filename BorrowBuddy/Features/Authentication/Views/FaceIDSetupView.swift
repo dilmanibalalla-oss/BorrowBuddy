@@ -93,15 +93,13 @@ struct FaceIDSetupView: View {
                 return
             }
 
-            guard let credentials = dependencies.pendingCredentials else {
-                errorMessage = "Couldn't save login for Face ID. Go back and create your account again."
-                return
+            if let credentials = dependencies.pendingCredentials {
+                CredentialStore.save(credentials)
             }
-
-            CredentialStore.save(credentials)
             CredentialStore.isFaceIDEnabled = true
             dependencies.pendingCredentials = nil
-            router.go(to: .location)
+            try? await dependencies.authenticationService.completeOnboarding()
+            router.go(to: .home)
         } catch {
             // Stay on this screen — don't auto-skip so the user can retry or tap Maybe Later.
             errorMessage = error.localizedDescription
