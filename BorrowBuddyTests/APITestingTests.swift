@@ -64,6 +64,20 @@ final class APITestingTests: XCTestCase {
         }
     }
 
+    func testOpenMeteoForecastDecodesShedWeather() throws {
+        let json = #"{"current":{"temperature_2m":22.4,"weather_code":0}}"#.data(using: .utf8)!
+        let weather = try ShedWeatherService.weather(from: json)
+        XCTAssertEqual(weather.temperatureCelsius, 22.4)
+        XCTAssertEqual(weather.condition, "clear")
+        XCTAssertEqual(weather.summary, "22°C and clear at your shed")
+
+        let url = ShedWeatherService.requestURL(latitude: 43.65, longitude: -79.38)
+        XCTAssertEqual(url?.scheme, "https")
+        XCTAssertEqual(url?.host, "api.open-meteo.com")
+        XCTAssertNil(ShedWeatherService.requestURL(latitude: 120, longitude: 0))
+        XCTAssertThrowsError(try ShedWeatherService.weather(from: Data("{}".utf8)))
+    }
+
     func testMissingReservationResponseThrows() async {
         let repository = InMemoryBorrowingRepository()
         do {

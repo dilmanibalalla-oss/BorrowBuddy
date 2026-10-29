@@ -26,20 +26,20 @@ struct BorrowBuddyLogo: View {
                 .frame(width: size, height: size)
                 .overlay {
                     RoundedRectangle(cornerRadius: corner)
-                        .stroke(AppTheme.blue, lineWidth: 4)
+                        .stroke(AppTheme.onYellow, lineWidth: 4)
                 }
 
             Rectangle()
-                .fill(AppTheme.blue)
+                .fill(AppTheme.onYellow)
                 .frame(width: size - 4, height: stripeHeight)
 
             Image(systemName: "wrench.adjustable")
                 .font(.system(size: iconSize, weight: .medium))
-                .foregroundStyle(AppTheme.blue)
+                .foregroundStyle(AppTheme.onYellow)
                 .offset(x: size * 0.064, y: -size * 0.136)
 
             RoundedRectangle(cornerRadius: 10)
-                .stroke(AppTheme.blue, lineWidth: 4)
+                .stroke(AppTheme.onYellow, lineWidth: 4)
                 .frame(width: tagWidth, height: tagHeight)
                 .offset(x: -size * 0.3, y: -size * 0.57)
         }

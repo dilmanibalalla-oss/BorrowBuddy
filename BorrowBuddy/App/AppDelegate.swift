@@ -20,14 +20,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         FirebaseBootstrap.configure()
 
         #if canImport(FirebaseAuth) && DEBUG
-        // Always on in DEBUG so Firebase console test numbers work without paid SMS.
-        // Register +94 713123411 with code 123456 under Authentication → Phone → Phone numbers for testing.
         if FirebaseBootstrap.isConfigured {
             Auth.auth().settings?.isAppVerificationDisabledForTesting = true
         }
         #endif
 
         UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
         application.registerForRemoteNotifications()
         return true
     }
@@ -76,6 +75,6 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .sound])
+        completionHandler([.banner, .list, .sound, .badge])
     }
 }

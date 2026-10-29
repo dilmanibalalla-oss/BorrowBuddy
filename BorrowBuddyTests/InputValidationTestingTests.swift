@@ -45,7 +45,8 @@ final class InputValidationTestingTests: XCTestCase {
         XCTAssertNil(verification.errorMessage)
         verification.updateCode("999999000")
         XCTAssertEqual(verification.code, "999999")
-        XCTAssertEqual(verification.errorMessage, "Incorrect verification code.")
+        XCTAssertNil(verification.errorMessage)
+        XCTAssertTrue(verification.canVerify)
     }
 
     func testPhoneLengthStripsInvalidCharacters() {

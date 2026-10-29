@@ -40,7 +40,7 @@ struct PaymentMethodsView: View {
                             .foregroundStyle(AppTheme.blue)
                     }
                     .padding(14)
-                    .background(Color.white)
+                    .background(AppTheme.surface)
                     .overlay {
                         RoundedRectangle(cornerRadius: 14)
                             .stroke(AppTheme.blue, lineWidth: 1.5)
@@ -68,7 +68,7 @@ struct PaymentMethodsView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
         .navigationBarHidden(true)

@@ -9,6 +9,10 @@ final class AccessibilityTestingTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.text), on: background), 4.5)
         XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.blue), on: background), 4.5)
         XCTAssertGreaterThan(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.coral), on: background), 2.5)
+        let darkBackground = CoverageFixtures.uiColor(AppTheme.background, style: .dark)
+        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.text, style: .dark), on: darkBackground), 4.5)
+        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.blue, style: .dark), on: darkBackground), 4.5)
+        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.secondaryText, style: .dark), on: darkBackground), 4.5)
     }
 
     func testEvidenceAnglesExposeTitlesAndInstructions() {

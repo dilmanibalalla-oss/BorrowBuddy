@@ -14,13 +14,14 @@ final class PhoneSignInViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
-    /// Only the exact hardcoded test digits unlock the next step.
-    var matchesTestPhone: Bool {
-        phoneNumber.filter(\.isNumber) == DevAuthFixtures.testPhoneDigits
+    private var nationalDigits: String {
+        phoneNumber.filter(\.isNumber)
     }
 
     var canContinue: Bool {
-        matchesTestPhone && !isLoading
+        let count = nationalDigits.count
+        let minimum = min(8, selectedCountry.maxNationalDigits)
+        return count >= minimum && count <= selectedCountry.maxNationalDigits && !isLoading
     }
 
     var fullPhoneNumber: String {
@@ -48,27 +49,21 @@ final class PhoneSignInViewModel: ObservableObject {
         let digits = String(normalized.prefix(selectedCountry.maxNationalDigits))
         phoneNumber = Self.grouped(digits, for: selectedCountry)
 
-        if digits.isEmpty {
-            errorMessage = nil
-        } else if digits == DevAuthFixtures.testPhoneDigits {
-            errorMessage = nil
-        } else if digits.count >= DevAuthFixtures.testPhoneDigits.count {
-            errorMessage = "Incorrect phone number."
-        } else {
-            errorMessage = nil
-        }
+        errorMessage = nil
     }
 
     @MainActor
     func sendCode(using service: AuthenticationService) async -> String? {
+        let count = nationalDigits.count
+        let minimum = min(8, selectedCountry.maxNationalDigits)
+        guard count >= minimum, count <= selectedCountry.maxNationalDigits else {
+            errorMessage = "Enter a valid phone number for \(selectedCountry.name)."
+            return nil
+        }
+
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
-
-        guard matchesTestPhone else {
-            errorMessage = "Incorrect phone number."
-            return nil
-        }
 
         do {
             return try await service.sendVerificationCode(to: fullPhoneNumber)

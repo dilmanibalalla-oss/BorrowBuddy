@@ -4,12 +4,15 @@
 //
 
 import SwiftUI
+import UIKit
 import UserNotifications
 
 struct NotificationPreferencesView: View {
     @EnvironmentObject private var dependencies: AppDependencies
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel = AccountSettingsViewModel()
+    @State private var waitingForSystemSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,25 +34,63 @@ struct NotificationPreferencesView: View {
             }
 
             PrimaryButton(title: viewModel.isLoading ? "Saving..." : "Save preferences", enabled: !viewModel.isLoading) {
-                Task {
-                    if viewModel.notifications.reservationUpdates
-                        || viewModel.notifications.pickupReminders
-                        || viewModel.notifications.returnReminders {
-                        _ = try? await UNUserNotificationCenter.current()
-                            .requestAuthorization(options: [.alert, .badge, .sound])
-                    }
-                    _ = await viewModel.saveNotifications(using: dependencies.accountRepository)
-                    await dependencies.notificationService.registerToken()
-                }
+                Task { await savePreferences(openSettingsIfNeeded: true) }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
         .navigationBarHidden(true)
         .task {
             await viewModel.loadNotifications(using: dependencies.accountRepository)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, waitingForSystemSettings else { return }
+            waitingForSystemSettings = false
+            Task { await savePreferences(openSettingsIfNeeded: false) }
+        }
+    }
+
+    private func savePreferences(openSettingsIfNeeded: Bool) async {
+        let wantsAlerts = viewModel.notifications.reservationUpdates
+            || viewModel.notifications.pickupReminders
+            || viewModel.notifications.returnReminders
+            || viewModel.notifications.neighborhoodActivity
+        if wantsAlerts {
+            let allowed = await systemNotificationsAllowed(openSettingsIfNeeded: openSettingsIfNeeded)
+            guard await viewModel.saveNotifications(using: dependencies.accountRepository) else { return }
+            await dependencies.notificationService.registerToken()
+            guard allowed else { return }
+            let loans = (try? await dependencies.borrowingRepository.fetchMyLoans()) ?? []
+            for loan in loans {
+                await dependencies.notificationService.schedule(for: loan, preferences: viewModel.notifications)
+            }
+            await dependencies.notificationService.deliver(
+                title: "Notifications are on",
+                body: "BorrowBuddy will send pickup, return, and loan updates."
+            )
+        } else {
+            guard await viewModel.saveNotifications(using: dependencies.accountRepository) else { return }
+            UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        }
+    }
+
+    private func systemNotificationsAllowed(openSettingsIfNeeded: Bool) async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let status = await center.notificationSettings().authorizationStatus
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .notDetermined:
+            return (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+        case .denied:
+            guard openSettingsIfNeeded, let url = URL(string: UIApplication.openSettingsURLString) else { return false }
+            waitingForSystemSettings = true
+            await UIApplication.shared.open(url)
+            return false
+        @unknown default:
+            return false
         }
     }
 

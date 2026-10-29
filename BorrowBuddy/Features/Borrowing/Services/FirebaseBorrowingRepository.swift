@@ -31,21 +31,14 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
 
     func fetchNearbyTools() async throws -> [BorrowingTool] {
         _ = try currentUserID()
-        let snapshot: QuerySnapshot
-        do {
-            snapshot = try await database.collection("tools")
-                .whereField("status", isEqualTo: "available")
-                .order(by: "createdAt", descending: true)
-                .limit(to: 30)
-                .getDocuments(source: .server)
-        } catch {
-            snapshot = try await database.collection("tools")
-                .whereField("status", isEqualTo: "available")
-                .limit(to: 30)
-                .getDocuments(source: .server)
-        }
+        let snapshot = try await database.collection("tools")
+            .whereField("status", isEqualTo: "available")
+            .limit(to: 30)
+            .getDocuments(source: .server)
         let finishedToolIDs = await toolIDsWithCompletedLoans()
-        return snapshot.documents.compactMap(makeTool).filter { !finishedToolIDs.contains($0.id) }
+        return snapshot.documents.compactMap(makeTool)
+            .filter { !finishedToolIDs.contains($0.id) }
+            .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
     }
 
     /// Loans completed before the tool status was updated may still be marked available.

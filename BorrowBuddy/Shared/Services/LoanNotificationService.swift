@@ -4,11 +4,10 @@ import Foundation
 import FirebaseAuth
 import FirebaseFirestore
 #endif
-#if canImport(FirebaseAuth) && canImport(FirebaseMessaging)
-import FirebaseAuth
-import FirebaseMessaging
-import FirebaseFirestore
-#endif
+
+extension Notification.Name {
+    static let borrowBuddyDidNotify = Notification.Name("borrowbuddy.didNotify")
+}
 
 @MainActor
 final class LoanNotificationService {
@@ -17,25 +16,35 @@ final class LoanNotificationService {
         let ids = ["pickup", "return-day", "return-hour", "due", "overdue", "grace-ended"].map { "loan-\(loan.id)-\($0)" }
         center.removePendingNotificationRequests(withIdentifiers: ids)
         guard loan.isOpen else { return }
+        await ensureAuthorization()
+        let settings = await center.notificationSettings()
+        let canNotify = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional || settings.authorizationStatus == .ephemeral
         #if canImport(FirebaseAuth)
         let isBorrower = Auth.auth().currentUser?.uid == loan.borrowerID
         #else
         let isBorrower = true
         #endif
-        if isBorrower && preferences.returnReminders {
-            await ensureAuthorization()
-        }
-        let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional || settings.authorizationStatus == .ephemeral else { return }
+        var upcoming: [(id: String, title: String, body: String, at: Date)] = []
         if loan.status == .pending && preferences.pickupReminders {
-            await add(id: ids[0], title: "Pickup reminder", body: loan.toolName, at: loan.pickupAt.addingTimeInterval(-3600))
+            upcoming.append((ids[0], "Pickup reminder", loan.toolName, loan.pickupAt.addingTimeInterval(-3600)))
         }
-        if loan.status == .active && loan.lifecycleStage != .awaitingReview && preferences.returnReminders {
+        if isBorrower && loan.status == .active && loan.lifecycleStage != .awaitingReview && preferences.returnReminders {
             for reminder in ReturnReminderSchedule.borrowerReturnReminders(returnAt: loan.returnAt) {
                 let body = reminder.suffix == "due" ? "\(loan.toolName) is due." : loan.toolName
                 let index = ["return-day", "return-hour", "due", "overdue", "grace-ended"].firstIndex(of: reminder.suffix) ?? 0
-                await add(id: ids[index + 1], title: reminder.title, body: body, at: reminder.fireAt)
+                upcoming.append((ids[index + 1], reminder.title, body, reminder.fireAt))
             }
+        }
+        if canNotify {
+            for item in upcoming {
+                await add(id: item.id, title: item.title, body: item.body, at: item.at)
+            }
+        }
+        let future = upcoming.filter { $0.at > Date() }
+        let next = future.min { $0.at < $1.at }
+            ?? upcoming.filter { $0.at > Date().addingTimeInterval(-7 * 86_400) }.max { $0.at < $1.at }
+        if let next, announced.insert(next.id).inserted {
+            await present(title: next.title, body: next.body)
         }
     }
 
@@ -84,6 +93,7 @@ final class LoanNotificationService {
     #if canImport(FirebaseAuth) && canImport(FirebaseFirestore)
     private var messageListeners: [String: ListenerRegistration] = [:]
     #endif
+    private var announced: Set<String> = []
 
     private func ensureAuthorization() async {
         let center = UNUserNotificationCenter.current()
@@ -93,6 +103,11 @@ final class LoanNotificationService {
     }
 
     private func present(title: String, body: String) async {
+        NotificationCenter.default.post(
+            name: .borrowBuddyDidNotify,
+            object: nil,
+            userInfo: ["title": title, "body": body]
+        )
         await ensureAuthorization()
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional || settings.authorizationStatus == .ephemeral else { return }
@@ -118,29 +133,15 @@ final class LoanNotificationService {
         await present(title: title, body: body)
     }
 
-    func registerToken(_ token: String? = nil) async {
-        #if canImport(FirebaseAuth) && canImport(FirebaseMessaging)
-        guard FirebaseBootstrap.isConfigured, let uid = Auth.auth().currentUser?.uid else { return }
-        do {
-            let value: String
-            if let token { value = token } else { value = try await Messaging.messaging().token() }
-            var deviceID = UserDefaults.standard.string(forKey: "notificationDeviceID")
-            if deviceID == nil { deviceID = UUID().uuidString; UserDefaults.standard.set(deviceID, forKey: "notificationDeviceID") }
-            guard let deviceID else { return }
-            try await Firestore.firestore().collection("users").document(uid).collection("devices").document(deviceID)
-                .setData(["token": value, "updatedAt": FieldValue.serverTimestamp()])
-        } catch { /* Push failure does not block login; local reminders remain available. */ }
-        #endif
+    func registerToken() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else { return }
+        _ = try? await center.requestAuthorization(options: [.alert, .badge, .sound])
     }
 
     func unregister() async {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-        #if canImport(FirebaseAuth) && canImport(FirebaseMessaging)
-        if let uid = Auth.auth().currentUser?.uid, let deviceID = UserDefaults.standard.string(forKey: "notificationDeviceID") {
-            try? await Firestore.firestore().collection("users").document(uid).collection("devices").document(deviceID).delete()
-        }
-        try? await Messaging.messaging().deleteToken()
-        #endif
     }
 }

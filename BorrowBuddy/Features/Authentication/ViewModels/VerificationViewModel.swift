@@ -16,12 +16,8 @@ final class VerificationViewModel: ObservableObject {
     @Published private(set) var statusMessage: String?
     private var timer: AnyCancellable?
 
-    var matchesTestCode: Bool {
-        code == DevAuthFixtures.testVerificationCode
-    }
-
     var canVerify: Bool {
-        matchesTestCode && !isLoading
+        code.count == 6 && !isLoading
     }
 
     init() {
@@ -29,14 +25,11 @@ final class VerificationViewModel: ObservableObject {
     }
 
     func updateCode(_ value: String) {
-        code = String(value.filter(\.isNumber).prefix(6))
-        if code.isEmpty {
-            errorMessage = nil
-        } else if code.count == 6, code != DevAuthFixtures.testVerificationCode {
-            errorMessage = "Incorrect verification code."
-        } else {
+        let next = String(value.filter(\.isNumber).prefix(6))
+        if next != code {
             errorMessage = nil
         }
+        code = next
     }
 
     @MainActor
@@ -65,16 +58,24 @@ final class VerificationViewModel: ObservableObject {
         verificationID: String?,
         using service: AuthenticationService
     ) async -> Bool {
+        guard code.count == 6 else {
+            errorMessage = "Enter the 6-digit verification code."
+            return false
+        }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
         do {
-            guard matchesTestCode else {
-                errorMessage = "Incorrect verification code."
-                return false
-            }
             try await service.verify(code: code, verificationID: verificationID)
             return true
+        } catch let error as AuthenticationError {
+            switch error {
+            case .invalidCode:
+                errorMessage = "Incorrect verification code."
+            default:
+                errorMessage = error.localizedDescription
+            }
+            return false
         } catch {
             errorMessage = error.localizedDescription
             return false

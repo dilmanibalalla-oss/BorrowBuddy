@@ -3,7 +3,6 @@
 //  BorrowBuddy
 //
 
-import LocalAuthentication
 import SwiftUI
 
 struct FaceIDSetupView: View {
@@ -69,7 +68,6 @@ struct FaceIDSetupView: View {
             .padding(.top, 12)
             .padding(.bottom, 24)
         }
-        .frame(maxWidth: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
         .onAppear {

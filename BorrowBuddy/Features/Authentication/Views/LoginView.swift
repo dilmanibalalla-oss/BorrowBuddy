@@ -11,94 +11,102 @@ struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Welcome back")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(AppTheme.onYellow)
+                Text("Log in with your email and password, or unlock with Face ID.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.onYellow)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(AppTheme.yellow)
+
             BackButton {
                 router.go(to: .signUp)
             }
             .padding(.top, 8)
-            .padding(.leading, -18)
+            .padding(.leading, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("Welcome back")
-                .font(AppTheme.rounded(28, weight: .heavy))
-                .foregroundStyle(AppTheme.blue)
-                .padding(.top, 12)
+            Spacer(minLength: 12)
 
-            Text("Log in with your email and password, or unlock with Face ID.")
-                .font(.system(size: 16))
-                .foregroundStyle(AppTheme.secondaryText)
-                .padding(.top, 8)
+            VStack(spacing: 0) {
+                AuthTextField(
+                    title: "Email address",
+                    placeholder: "you@email.com",
+                    text: $viewModel.email,
+                    kind: .email,
+                    autofocus: true
+                )
 
-            AuthTextField(
-                title: "Email address",
-                placeholder: "you@email.com",
-                text: $viewModel.email,
-                kind: .email,
-                autofocus: true
-            )
-            .padding(.top, 28)
+                AuthTextField(
+                    title: "Password",
+                    placeholder: "Your password",
+                    text: $viewModel.password,
+                    kind: .password
+                )
+                .padding(.top, 16)
 
-            AuthTextField(
-                title: "Password",
-                placeholder: "Your password",
-                text: $viewModel.password,
-                kind: .password
-            )
-            .padding(.top, 16)
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.coral)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 14)
+                }
 
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.coral)
-                    .padding(.top, 14)
-            }
+                if viewModel.canUseFaceID {
+                    PrimaryButton(
+                        title: viewModel.isLoading ? "Unlocking..." : "Sign in with Face ID",
+                        systemImage: "faceid",
+                        enabled: !viewModel.isLoading
+                    ) {
+                        Task {
+                            if await viewModel.signInWithFaceID(using: dependencies.authenticationService) {
+                                try? await dependencies.authenticationService.completeOnboarding()
+                                router.go(to: .home)
+                            }
+                        }
+                    }
+                    .padding(.top, 28)
+                }
 
-            Spacer()
-
-            if viewModel.canUseFaceID {
                 PrimaryButton(
-                    title: viewModel.isLoading ? "Unlocking..." : "Sign in with Face ID",
-                    systemImage: "faceid",
-                    enabled: !viewModel.isLoading
+                    title: viewModel.isLoading ? "Logging in..." : "Log in",
+                    enabled: viewModel.canSubmit
                 ) {
                     Task {
-                        if await viewModel.signInWithFaceID(using: dependencies.authenticationService) {
+                        if await viewModel.signIn(using: dependencies.authenticationService) {
                             try? await dependencies.authenticationService.completeOnboarding()
                             router.go(to: .home)
                         }
                     }
                 }
-                .padding(.bottom, 12)
-            }
+                .padding(.top, viewModel.canUseFaceID ? 12 : 28)
 
-            PrimaryButton(
-                title: viewModel.isLoading ? "Logging in..." : "Log in",
-                enabled: viewModel.canSubmit
-            ) {
-                Task {
-                    if await viewModel.signIn(using: dependencies.authenticationService) {
-                        try? await dependencies.authenticationService.completeOnboarding()
-                        router.go(to: .home)
+                HStack(spacing: 4) {
+                    Text("New here?")
+                        .foregroundStyle(AppTheme.secondaryText)
+                    Button("Create account") {
+                        router.go(to: .signUp)
                     }
+                    .fontWeight(.bold)
+                    .foregroundStyle(AppTheme.blue)
                 }
+                .font(.system(size: 15))
+                .frame(maxWidth: .infinity)
+                .padding(.top, 18)
             }
-            .padding(.bottom, 8)
+            .padding(.horizontal, 24)
+            .frame(maxWidth: .infinity)
 
-            HStack(spacing: 4) {
-                Spacer()
-                Text("New here?")
-                    .foregroundStyle(AppTheme.secondaryText)
-                Button("Create account") {
-                    router.go(to: .signUp)
-                }
-                .fontWeight(.bold)
-                .foregroundStyle(AppTheme.blue)
-                Spacer()
-            }
-            .font(.system(size: 15))
-            .padding(.bottom, 18)
+            Spacer(minLength: 18)
         }
-        .padding(.horizontal, 24)
-        .frame(maxWidth: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
     }

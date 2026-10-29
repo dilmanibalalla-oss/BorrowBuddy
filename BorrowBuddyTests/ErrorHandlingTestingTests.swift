@@ -52,12 +52,15 @@ final class ErrorHandlingTestingTests: XCTestCase {
         XCTAssertEqual(model.emptyState, .outsideRadius)
     }
 
-    func testUnreadablePhotoAndWrongCodeStayOnScreen() throws {
+    func testUnreadablePhotoAndWrongCodeStayOnScreen() async throws {
         XCTAssertThrowsError(try PhotoEncoding.jpeg(UIImage())) { error in
             XCTAssertEqual(error.localizedDescription, ConditionComparisonError.unreadableImage.localizedDescription)
         }
+        let service = ScriptedAuthenticationService()
         let verification = VerificationViewModel()
         verification.updateCode("000000")
+        let rejected = await verification.verify(phoneNumber: "+94713123411", verificationID: DevAuthFixtures.localVerificationID, using: service)
+        XCTAssertFalse(rejected)
         XCTAssertEqual(verification.errorMessage, "Incorrect verification code.")
         verification.updateCode("")
         XCTAssertNil(verification.errorMessage)

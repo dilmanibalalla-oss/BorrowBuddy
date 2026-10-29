@@ -86,7 +86,7 @@ struct LoanProtectionView: View {
         HStack(alignment: .top, spacing: 11) {
             Text(number)
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(AppTheme.onBlue)
                 .frame(width: 26, height: 26)
                 .background(AppTheme.blue)
                 .clipShape(Circle())

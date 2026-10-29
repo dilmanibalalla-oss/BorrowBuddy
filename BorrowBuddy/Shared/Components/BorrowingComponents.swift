@@ -30,7 +30,7 @@ struct StatusPill: View {
         .foregroundStyle(filled ? Color(red: 0.66, green: 0.35, blue: 0.05) : AppTheme.blue)
         .padding(.horizontal, 9)
         .frame(height: 27)
-        .background(filled ? Color(red: 1, green: 0.94, blue: 0.83) : Color.white)
+        .background(filled ? Color(red: 1, green: 0.94, blue: 0.83) : AppTheme.surface)
         .overlay {
             if !filled {
                 Capsule().stroke(AppTheme.blue, lineWidth: 2)
@@ -115,7 +115,7 @@ struct BorrowingTabBar: View {
         .padding(.horizontal, 40)
         .padding(.top, 10)
         .padding(.bottom, 28)
-        .background(Color.white)
+        .background(AppTheme.surface)
         .overlay(alignment: .top) {
             Rectangle().fill(AppTheme.border).frame(height: 1)
         }
@@ -125,7 +125,7 @@ struct BorrowingTabBar: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(index == selectedTab ? AppTheme.blue : Color(red: 0.40, green: 0.49, blue: 0.54))
+                .foregroundStyle(index == selectedTab ? AppTheme.blue : AppTheme.secondaryText)
                 .frame(width: 30, height: 30)
         }
         .buttonStyle(.plain)

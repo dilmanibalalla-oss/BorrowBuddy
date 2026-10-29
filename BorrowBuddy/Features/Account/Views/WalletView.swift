@@ -100,7 +100,7 @@ struct WalletView: View {
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(AppTheme.surface)
         .overlay {
             RoundedRectangle(cornerRadius: 18).stroke(AppTheme.blue, lineWidth: 2.5)
         }
@@ -140,7 +140,7 @@ struct WalletView: View {
                     }
                 }
             }
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border, lineWidth: 1)
             }

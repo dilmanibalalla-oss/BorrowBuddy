@@ -17,7 +17,7 @@ struct SecondaryButton: View {
                 .foregroundStyle(AppTheme.blue)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(Color.white)
+                .background(AppTheme.surface)
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(AppTheme.blue, lineWidth: 2)

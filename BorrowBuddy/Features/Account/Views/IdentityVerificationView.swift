@@ -82,7 +82,7 @@ struct IdentityVerificationView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
         .navigationBarHidden(true)
@@ -108,7 +108,7 @@ struct IdentityVerificationView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
+        .background(AppTheme.surface)
         .overlay {
             RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border, lineWidth: 1)
         }

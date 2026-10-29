@@ -6,12 +6,11 @@
 import Foundation
 
 struct Country: Identifiable, Hashable {
-    let id: String // ISO 3166-1 alpha-2
+    let id: String
     let name: String
     let dialCode: String
     let maxNationalDigits: Int
 
-    /// Flag glyph built from the ISO region code (not a hardcoded emoji literal).
     var flag: String {
         id.uppercased().unicodeScalars.compactMap { scalar in
             guard let regional = UnicodeScalar(127397 + scalar.value) else { return nil }

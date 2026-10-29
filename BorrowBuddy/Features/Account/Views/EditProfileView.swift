@@ -74,7 +74,7 @@ struct EditProfileView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
         .navigationBarHidden(true)

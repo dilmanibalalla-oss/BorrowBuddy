@@ -122,7 +122,7 @@ struct ToolEditorView: View {
             TextField(title, text: text)
                 .padding(.horizontal, 12)
                 .frame(height: 46)
-                .background(Color.white)
+                .background(AppTheme.surface)
                 .overlay { RoundedRectangle(cornerRadius: 11).stroke(AppTheme.border, lineWidth: 1.5) }
         }
     }

@@ -5,15 +5,10 @@ struct BackButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "arrow.left")
-                .font(.system(size: 25, weight: .heavy))
+            Image(systemName: "chevron.left")
+                .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(AppTheme.blue)
-                .frame(width: 48, height: 48)
-                .background(AppTheme.background)
-                .overlay {
-                    Circle().stroke(AppTheme.blue, lineWidth: 6)
-                }
-                .clipShape(Circle())
+                .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Back")

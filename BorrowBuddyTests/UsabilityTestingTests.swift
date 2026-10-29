@@ -52,8 +52,8 @@ final class UsabilityTestingTests: XCTestCase {
     func testVerificationFeedbackClearsWhenTheUserEdits() {
         let verification = VerificationViewModel()
         verification.updateCode("000000")
-        XCTAssertEqual(verification.errorMessage, "Incorrect verification code.")
-        XCTAssertFalse(verification.canVerify)
+        XCTAssertNil(verification.errorMessage)
+        XCTAssertTrue(verification.canVerify)
         verification.updateCode(DevAuthFixtures.testVerificationCode)
         XCTAssertNil(verification.errorMessage)
         XCTAssertTrue(verification.canVerify)
