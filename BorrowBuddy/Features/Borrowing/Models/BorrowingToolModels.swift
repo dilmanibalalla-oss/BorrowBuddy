@@ -8,7 +8,6 @@
 import CoreLocation
 import FirebaseFirestore
 import Foundation
-import MapKit
 
 struct BorrowingTool: Identifiable, Equatable, Hashable {
     let id: String

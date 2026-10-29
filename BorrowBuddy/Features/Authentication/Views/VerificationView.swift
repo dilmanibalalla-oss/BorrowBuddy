@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct VerificationView: View {
     @EnvironmentObject private var router: AppRouter
@@ -127,7 +126,6 @@ struct VerificationView: View {
             .padding(.bottom, 18)
         }
         .padding(.horizontal, 24)
-        .frame(maxWidth: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
         .onAppear {
@@ -149,7 +147,7 @@ struct VerificationView: View {
             .foregroundStyle(AppTheme.blue)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 11)
                     .stroke(isActive || !value.isEmpty ? AppTheme.blue : AppTheme.border, lineWidth: 2)

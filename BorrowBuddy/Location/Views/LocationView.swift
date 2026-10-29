@@ -9,9 +9,8 @@ struct LocationView: View {
     var body: some View {
         ScrollView {
         VStack(alignment: .leading, spacing: 0) {
-            Button { router.go(to: .home) } label: {
-                Label("Back", systemImage: "chevron.left").font(.subheadline.bold())
-            }.foregroundStyle(AppTheme.blue).padding(.bottom, 30)
+            BackButton { router.go(to: .home) }
+                .padding(.bottom, 30)
 
             Text("Find Your Shed")
                 .font(AppTheme.rounded(27, weight: .heavy))
@@ -36,13 +35,13 @@ struct LocationView: View {
                     Text("Use My Location")
                         .font(AppTheme.rounded(16, weight: .bold))
                 }
-                .foregroundStyle(AppTheme.blue)
+                .foregroundStyle(AppTheme.onYellow)
                 .frame(maxWidth: .infinity)
                 .frame(height: 48)
                 .background(AppTheme.yellow)
                 .overlay {
                     RoundedRectangle(cornerRadius: 11)
-                        .stroke(AppTheme.blue, lineWidth: 2)
+                        .stroke(AppTheme.onYellow, lineWidth: 2)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 11))
                 .shadow(color: AppTheme.shadow, radius: 0, x: 0, y: 5)
@@ -102,7 +101,6 @@ struct LocationView: View {
             .padding(.bottom, 18)
         }
         .padding(.horizontal, 24)
-        .frame(maxWidth: 560)
         .frame(maxWidth: .infinity)
         .padding(.top, 20)
         }
@@ -129,7 +127,7 @@ struct LocationView: View {
             .font(.system(size: 16))
             .padding(.horizontal, 15)
             .frame(height: 47)
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 11)
                     .stroke(AppTheme.border, lineWidth: 2)

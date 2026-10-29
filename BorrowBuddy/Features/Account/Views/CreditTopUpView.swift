@@ -76,7 +76,7 @@ struct CreditTopUpView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("BORROWBUDDY PRO")
                 .font(.system(size: 9, weight: .heavy))
-                .foregroundStyle(AppTheme.blue)
+                .foregroundStyle(AppTheme.onYellow)
                 .padding(.horizontal, 5)
                 .frame(height: 17)
                 .background(AppTheme.yellow)
@@ -95,7 +95,7 @@ struct CreditTopUpView: View {
             }
         }
         .padding(15)
-        .background(Color.white)
+        .background(AppTheme.surface)
         .overlay {
             RoundedRectangle(cornerRadius: 15).stroke(AppTheme.blue, lineWidth: 1.5)
         }
@@ -112,7 +112,7 @@ struct CreditTopUpView: View {
                     if recommended {
                         Text("BEST VALUE")
                             .font(.system(size: 9, weight: .heavy))
-                            .foregroundStyle(AppTheme.blue)
+                            .foregroundStyle(AppTheme.onYellow)
                             .padding(.horizontal, 5)
                             .frame(height: 17)
                             .background(AppTheme.yellow)
@@ -132,7 +132,7 @@ struct CreditTopUpView: View {
             }
             .padding(15)
             .frame(minHeight: recommended ? 90 : 72)
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 15)
                     .stroke(

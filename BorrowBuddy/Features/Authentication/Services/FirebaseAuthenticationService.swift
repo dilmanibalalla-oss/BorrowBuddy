@@ -5,11 +5,13 @@
 
 import FirebaseAuth
 import Foundation
+import UIKit
 
 final class FirebaseAuthenticationService: AuthenticationService {
     private let verificationIDKey = "firebasePhoneAuthVerificationID"
     private let onboardingKeyPrefix = "onboardingCompleted."
     private var inMemoryVerificationID: String?
+    private var authPresenter: FirebaseAuthPresenter?
 
     private var verificationID: String? {
         get {
@@ -74,19 +76,34 @@ final class FirebaseAuthenticationService: AuthenticationService {
         _ = try await Auth.auth().signIn(withEmail: trimmedEmail, password: password)
     }
 
-    func sendVerificationCode(to phoneNumber: String) async throws -> String {
-        // Hardcoded test number: skip Firebase SMS (avoids paid SMS / app verification).
-        if DevAuthFixtures.isTestPhone(phoneNumber) {
-            verificationID = DevAuthFixtures.localVerificationID
-            return DevAuthFixtures.localVerificationID
+    func signInWithGoogle() async throws {
+        let provider = OAuthProvider(providerID: "google.com")
+        provider.customParameters = ["prompt": "select_account"]
+        provider.scopes = ["email", "profile"]
+        let presenter = makePresenter()
+        do {
+            _ = try await Auth.auth().signIn(with: provider, uiDelegate: presenter)
+            authPresenter = nil
+        } catch {
+            authPresenter = nil
+            throw Self.mappedAuthError(error)
         }
+    }
 
-        let receivedVerificationID = try await PhoneAuthProvider.provider().verifyPhoneNumber(
-            phoneNumber,
-            uiDelegate: nil
-        )
-        verificationID = receivedVerificationID
-        return receivedVerificationID
+    func sendVerificationCode(to phoneNumber: String) async throws -> String {
+        let presenter = makePresenter()
+        do {
+            let receivedVerificationID = try await PhoneAuthProvider.provider().verifyPhoneNumber(
+                phoneNumber,
+                uiDelegate: presenter
+            )
+            verificationID = receivedVerificationID
+            authPresenter = nil
+            return receivedVerificationID
+        } catch {
+            authPresenter = nil
+            throw Self.mappedAuthError(error)
+        }
     }
 
     func verify(code: String, verificationID suppliedVerificationID: String?) async throws {
@@ -94,16 +111,9 @@ final class FirebaseAuthenticationService: AuthenticationService {
             throw AuthenticationError.verificationNotStarted
         }
 
-        // Local test OTP path — no Firebase phone credential required.
         if DevAuthFixtures.isLocalVerificationID(savedVerificationID) {
-            guard code == DevAuthFixtures.testVerificationCode else {
-                throw AuthenticationError.invalidCode
-            }
-            guard Auth.auth().currentUser != nil else {
-                throw CommunityError.signInRequired
-            }
             verificationID = nil
-            return
+            throw AuthenticationError.verificationNotStarted
         }
 
         let credential = PhoneAuthProvider.provider().credential(
@@ -111,20 +121,51 @@ final class FirebaseAuthenticationService: AuthenticationService {
             verificationCode: code
         )
 
-        if let currentUser = Auth.auth().currentUser {
-            // New sign-up path: link phone to the existing email account.
-            do {
-                _ = try await currentUser.link(with: credential)
-            } catch let error as NSError
-                where AuthErrorCode(rawValue: error.code) == .credentialAlreadyInUse
-                || AuthErrorCode(rawValue: error.code) == .providerAlreadyLinked {
-                // Phone already associated — continue onboarding.
+        do {
+            if let currentUser = Auth.auth().currentUser {
+                do {
+                    _ = try await currentUser.link(with: credential)
+                } catch let error as NSError
+                    where AuthErrorCode(rawValue: error.code) == .credentialAlreadyInUse
+                    || AuthErrorCode(rawValue: error.code) == .providerAlreadyLinked {
+                }
+            } else {
+                _ = try await Auth.auth().signIn(with: credential)
             }
-        } else {
-            _ = try await Auth.auth().signIn(with: credential)
+        } catch {
+            throw Self.mappedAuthError(error)
         }
 
         verificationID = nil
+    }
+
+    private func makePresenter() -> FirebaseAuthPresenter {
+        let presenter = FirebaseAuthPresenter()
+        authPresenter = presenter
+        return presenter
+    }
+
+    private static func mappedAuthError(_ error: Error) -> Error {
+        let nsError = error as NSError
+        guard nsError.domain == AuthErrorDomain, let code = AuthErrorCode(rawValue: nsError.code) else {
+            return error
+        }
+        switch code {
+        case .invalidPhoneNumber:
+            return CommunityError.invalidInput("Enter a valid phone number with the correct country code.")
+        case .invalidVerificationCode:
+            return AuthenticationError.invalidCode
+        case .sessionExpired:
+            return CommunityError.invalidInput("That code expired. Request a new one.")
+        case .tooManyRequests, .quotaExceeded:
+            return CommunityError.invalidInput("Too many texts were sent. Wait a few minutes and try again.")
+        case .missingClientIdentifier, .invalidAppCredential, .appNotAuthorized, .captchaCheckFailed:
+            return CommunityError.invalidInput("Phone verification needs an APNs key and the Phone sign-in method enabled in Firebase.")
+        case .webContextCancelled, .webContextAlreadyPresented:
+            return CommunityError.invalidInput("Sign-in was cancelled. Try again.")
+        default:
+            return error
+        }
     }
 
     func prepareAccount() async throws {
@@ -148,5 +189,34 @@ final class FirebaseAuthenticationService: AuthenticationService {
 
     private func setOnboardingCompleted(_ completed: Bool, for uid: String) {
         UserDefaults.standard.set(completed, forKey: onboardingKeyPrefix + uid)
+    }
+}
+
+private final class FirebaseAuthPresenter: NSObject, AuthUIDelegate {
+    func present(_ viewControllerToPresent: UIViewController, animated flag: Bool, completion: (() -> Void)? = nil) {
+        guard let presenter = Self.topViewController() else {
+            completion?()
+            return
+        }
+        presenter.present(viewControllerToPresent, animated: flag, completion: completion)
+    }
+
+    func dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
+        Self.topViewController()?.dismiss(animated: flag, completion: completion)
+    }
+
+    private static func topViewController(base: UIViewController? = nil) -> UIViewController? {
+        let root = base ?? UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .rootViewController
+        if let navigation = root as? UINavigationController {
+            return topViewController(base: navigation.visibleViewController)
+        }
+        if let presented = root?.presentedViewController {
+            return topViewController(base: presented)
+        }
+        return root
     }
 }

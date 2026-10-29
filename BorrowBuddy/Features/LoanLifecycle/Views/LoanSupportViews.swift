@@ -40,7 +40,7 @@ struct LoanChatView: View {
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
+                        .background(AppTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     AccountSaveStatus(error: errorMessage, success: nil)
@@ -51,7 +51,7 @@ struct LoanChatView: View {
                 TextField("Write a note", text: $draft)
                     .padding(.horizontal, 12)
                     .frame(height: 44)
-                    .background(Color.white)
+                    .background(AppTheme.surface)
                     .overlay { RoundedRectangle(cornerRadius: 11).stroke(AppTheme.border) }
                 Button(isSending ? "..." : "Send") { Task { await send() } }
                     .font(AppTheme.rounded(14, weight: .bold))
@@ -124,7 +124,7 @@ struct LoanRatingView: View {
             TextField("Optional comment", text: $comment, axis: .vertical)
                 .lineLimit(3...6)
                 .padding(12)
-                .background(Color.white)
+                .background(AppTheme.surface)
                 .overlay { RoundedRectangle(cornerRadius: 11).stroke(AppTheme.border) }
             AccountSaveStatus(error: errorMessage, success: nil)
             PrimaryButton(title: isSaving ? "Saving..." : "Submit rating", enabled: !isSaving) {
@@ -198,7 +198,7 @@ struct NonReturnCaseView: View {
             TextField("What happened?", text: $reason, axis: .vertical)
                 .lineLimit(4...8)
                 .padding(12)
-                .background(Color.white)
+                .background(AppTheme.surface)
                 .overlay { RoundedRectangle(cornerRadius: 11).stroke(AppTheme.border) }
             AccountSaveStatus(error: errorMessage, success: successMessage)
             PrimaryButton(title: isSaving ? "Opening..." : "Open case", enabled: !isSaving && !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {

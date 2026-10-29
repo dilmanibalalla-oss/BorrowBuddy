@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct PhoneSignInView: View {
     @EnvironmentObject private var router: AppRouter
@@ -79,7 +78,7 @@ struct PhoneSignInView: View {
             }
             .padding(.horizontal, 15)
             .frame(height: 54)
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 11)
                     .stroke(AppTheme.blue, lineWidth: 2)
@@ -123,7 +122,6 @@ struct PhoneSignInView: View {
             .padding(.bottom, 18)
         }
         .padding(.horizontal, 24)
-        .frame(maxWidth: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
         .sheet(isPresented: $showCountryPicker, onDismiss: {

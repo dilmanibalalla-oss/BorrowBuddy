@@ -13,6 +13,7 @@ struct ProfileView: View {
     @State private var path = NavigationPath()
     @State private var errorMessage: String?
     @State private var myListings: [BorrowingTool] = []
+    @AppStorage(AppTheme.darkModeKey) private var darkMode = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -146,7 +147,7 @@ struct ProfileView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(18)
-        .background(Color.white)
+        .background(AppTheme.surface)
         .overlay {
             RoundedRectangle(cornerRadius: 20).stroke(AppTheme.border, lineWidth: 1)
         }
@@ -163,7 +164,7 @@ struct ProfileView: View {
                     .foregroundStyle(AppTheme.green)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
-                    .background(Color.white)
+                    .background(AppTheme.surface)
                     .overlay {
                         RoundedRectangle(cornerRadius: 15).stroke(AppTheme.border, lineWidth: 1)
                     }
@@ -188,7 +189,7 @@ struct ProfileView: View {
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
+                        .background(AppTheme.surface)
                         .overlay {
                             RoundedRectangle(cornerRadius: 15).stroke(AppTheme.border, lineWidth: 1)
                         }
@@ -229,16 +230,38 @@ struct ProfileView: View {
                 Divider()
                 menuRow("Notification Preferences", icon: "bell", destination: .notifications)
                 Divider()
+                darkModeRow
+                Divider()
                 menuRow("Payment Methods", icon: "creditcard", destination: .paymentMethods)
                 Divider()
                 menuRow("Loan Protection", icon: "checkmark.shield", destination: .loanProtection)
             }
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 15).stroke(AppTheme.border, lineWidth: 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: 15))
         }
+    }
+
+    private var darkModeRow: some View {
+        HStack(spacing: 13) {
+            Image(systemName: darkMode ? "moon.fill" : "sun.max.fill")
+                .foregroundStyle(AppTheme.blue)
+                .frame(width: 20)
+            Text("Dark mode")
+                .font(.system(size: 14))
+                .foregroundStyle(AppTheme.text)
+            Spacer()
+            Toggle("Dark mode", isOn: $darkMode)
+                .labelsHidden()
+                .tint(AppTheme.blue)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 48)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Dark mode")
+        .accessibilityValue(darkMode ? "On" : "Off")
     }
 
     private func menuRow(_ title: String, icon: String, destination: AccountDestination) -> some View {

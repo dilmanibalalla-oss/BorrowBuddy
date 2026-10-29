@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import UIKit
 
 enum AuthFieldKind {
     case name
@@ -47,7 +46,7 @@ struct AuthTextField: View {
             .frame(height: 22)
             .padding(.horizontal, 15)
             .frame(height: 54)
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 11)
                     .stroke(isFocused ? AppTheme.blue : AppTheme.border, lineWidth: isFocused ? 2 : 1.5)

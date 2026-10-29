@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct PrimaryButton: View {
     let title: String
@@ -20,13 +19,13 @@ struct PrimaryButton: View {
                 Text(title)
                     .font(AppTheme.rounded(16, weight: .bold))
             }
-            .foregroundStyle(AppTheme.blue)
+            .foregroundStyle(AppTheme.onYellow)
             .frame(maxWidth: .infinity)
             .frame(height: 48)
             .background(AppTheme.yellow.opacity(enabled ? 1 : 0.55))
             .overlay {
                 RoundedRectangle(cornerRadius: 11)
-                    .stroke(AppTheme.blue, lineWidth: 2)
+                    .stroke(AppTheme.onYellow, lineWidth: 2)
             }
             .clipShape(RoundedRectangle(cornerRadius: 11))
             .shadow(color: AppTheme.shadow, radius: 0, x: 0, y: 5)

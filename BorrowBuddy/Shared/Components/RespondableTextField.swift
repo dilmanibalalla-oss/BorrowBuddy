@@ -18,8 +18,16 @@ struct RespondableTextField: UIViewRepresentable {
     var autocorrection: UITextAutocorrectionType = .default
     var textAlignment: NSTextAlignment = .left
     var font: UIFont = .systemFont(ofSize: 17)
-    var textColor: UIColor = UIColor(red: 0.17, green: 0.37, blue: 0.52, alpha: 1)
-    var tintColor: UIColor = UIColor(red: 0.17, green: 0.37, blue: 0.52, alpha: 1)
+    var textColor: UIColor = UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.93, green: 0.96, blue: 0.98, alpha: 1)
+            : UIColor(red: 0.17, green: 0.37, blue: 0.52, alpha: 1)
+    }
+    var tintColor: UIColor = UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.64, green: 0.86, blue: 0.97, alpha: 1)
+            : UIColor(red: 0.17, green: 0.37, blue: 0.52, alpha: 1)
+    }
     var isInvisible = false
     var maxLength: Int? = nil
     var filterDigitsOnly = false
@@ -65,6 +73,8 @@ struct RespondableTextField: UIViewRepresentable {
         uiView.isSecureTextEntry = isSecure
         uiView.autocapitalizationType = autocapitalization
         uiView.autocorrectionType = autocorrection
+        uiView.textColor = isInvisible ? .clear : textColor
+        uiView.tintColor = isInvisible ? .clear : tintColor
 
         if focusTrigger != context.coordinator.lastFocusTrigger {
             context.coordinator.lastFocusTrigger = focusTrigger

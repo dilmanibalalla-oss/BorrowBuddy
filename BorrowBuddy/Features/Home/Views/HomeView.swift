@@ -6,6 +6,7 @@ struct HomeView: View {
     @EnvironmentObject private var dependencies: AppDependencies
     @StateObject private var model = CommunityViewModel()
     @State private var showToolEditor = false
+    @State private var shedWeather: ShedWeather?
 
     private var activeRental: ReservationRecord? {
         model.loans.first { $0.isOpen && $0.borrowerID == dependencies.authenticationService.currentUserID }
@@ -26,6 +27,12 @@ struct HomeView: View {
                                 Text(greeting).font(.system(size: 13, weight: .semibold)).foregroundStyle(AppTheme.green)
                                 Text("Hey, \(model.account.displayName.isEmpty ? "Neighbor" : model.account.displayName.components(separatedBy: " ").first ?? model.account.displayName)")
                                     .font(AppTheme.rounded(25, weight: .heavy)).foregroundStyle(AppTheme.blue)
+                                if let shedWeather {
+                                    Text(shedWeather.summary)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(AppTheme.secondaryText)
+                                        .accessibilityLabel(shedWeather.summary)
+                                }
                             }
                             Spacer()
                             Button("\(model.account.creditBalance) LC") { router.go(to: .wallet) }
@@ -34,7 +41,7 @@ struct HomeView: View {
                         }
                         HStack(spacing: 12) {
                             Button { showToolEditor = true } label: {
-                                Text("+ List a tool").font(AppTheme.rounded(16, weight: .heavy)).foregroundStyle(.white)
+                                Text("+ List a tool").font(AppTheme.rounded(16, weight: .heavy)).foregroundStyle(AppTheme.onBlue)
                                     .frame(maxWidth: .infinity).frame(height: 48).background(AppTheme.blue).clipShape(RoundedRectangle(cornerRadius: 11))
                             }.buttonStyle(.plain)
                             LoanOutlineButton(title: "Find a tool") { router.go(to: .nearbyMap) }
@@ -89,7 +96,7 @@ struct HomeView: View {
                                 } else {
                                     Text(entry.kind == .pickup ? "Pickup" : "Return").font(.system(size: 12.5, weight: .bold)).foregroundStyle(AppTheme.blue)
                                 }
-                            }.padding(12).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 13))
+                            }.padding(12).background(AppTheme.surface).clipShape(RoundedRectangle(cornerRadius: 13))
                         }
                         if model.ledger.isEmpty && !model.isLoading { Text(model.sectionErrors["Wallet activity"] == nil ? "No recent activity" : "Unable to load activity. Pull down to retry.").font(.system(size: 12.5)).foregroundStyle(AppTheme.green) }
                     }
@@ -138,7 +145,7 @@ struct HomeView: View {
             CatalogToolArtwork(tool: tool).frame(width: 138, height: 98)
             Text(tool.name).font(AppTheme.rounded(14, weight: .bold)).foregroundStyle(AppTheme.blue).lineLimit(1)
             Text(featureDetail(tool)).font(.system(size: 12)).foregroundStyle(AppTheme.secondaryText)
-        }.padding(11).frame(width: 162, alignment: .leading).background(Color.white)
+        }.padding(11).frame(width: 162, alignment: .leading).background(AppTheme.surface)
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border)).clipShape(RoundedRectangle(cornerRadius: 16))
     }
     private var recentlyAdded: [BorrowingTool] {
@@ -151,6 +158,11 @@ struct HomeView: View {
     }
     private func refreshHome() async {
         await model.load(using: dependencies)
+        if let latitude = model.account.latitude, let longitude = model.account.longitude {
+            shedWeather = try? await ShedWeatherService.current(latitude: latitude, longitude: longitude)
+        } else {
+            shedWeather = nil
+        }
         let preferences = (try? await dependencies.accountRepository.loadNotificationSettings()) ?? .standard
         for loan in model.loans {
             await dependencies.notificationService.schedule(for: loan, preferences: preferences)

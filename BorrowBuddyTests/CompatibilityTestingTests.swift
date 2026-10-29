@@ -9,7 +9,7 @@ final class CompatibilityTestingTests: XCTestCase {
         XCTAssertEqual(Set(Country.all.map(\.id)).count, Country.all.count)
         XCTAssertEqual(Country.defaultCountry.id, "LK")
         for country in Country.all {
-            XCTAssertEqual(country.flag.unicodeScalars.count, 2)
+            XCTAssertEqual(country.flag.count, 1)
             XCTAssertFalse(country.flag.isEmpty)
             XCTAssertFalse(country.dialCode.isEmpty)
             XCTAssertGreaterThan(country.maxNationalDigits, 0)
@@ -18,17 +18,26 @@ final class CompatibilityTestingTests: XCTestCase {
     }
 
     func testThemeColorsStayStableAcrossAppearances() {
-        for style: UIUserInterfaceStyle in [.light, .dark] {
-            let blue = CoverageFixtures.uiColor(AppTheme.blue, style: style)
-            var red: CGFloat = 0
-            var green: CGFloat = 0
-            var blueChannel: CGFloat = 0
-            var alpha: CGFloat = 0
-            XCTAssertTrue(blue.getRed(&red, green: &green, blue: &blueChannel, alpha: &alpha))
-            XCTAssertEqual(red, 0.22, accuracy: 0.02)
-            XCTAssertEqual(green, 0.47, accuracy: 0.02)
-            XCTAssertEqual(blueChannel, 0.62, accuracy: 0.02)
-        }
+        let lightBlue = CoverageFixtures.uiColor(AppTheme.blue, style: .light)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blueChannel: CGFloat = 0
+        var alpha: CGFloat = 0
+        XCTAssertTrue(lightBlue.getRed(&red, green: &green, blue: &blueChannel, alpha: &alpha))
+        XCTAssertEqual(red, 0.22, accuracy: 0.02)
+        XCTAssertEqual(green, 0.47, accuracy: 0.02)
+        XCTAssertEqual(blueChannel, 0.62, accuracy: 0.02)
+
+        let darkBlue = CoverageFixtures.uiColor(AppTheme.blue, style: .dark)
+        let darkBackground = CoverageFixtures.uiColor(AppTheme.background, style: .dark)
+        let darkText = CoverageFixtures.uiColor(AppTheme.text, style: .dark)
+        XCTAssertGreaterThan(CoverageFixtures.luminance(darkBlue), CoverageFixtures.luminance(lightBlue))
+        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(darkText, on: darkBackground), 4.5)
+        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(darkBlue, on: darkBackground), 4.5)
+        XCTAssertGreaterThanOrEqual(
+            CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.onYellow, style: .dark), on: CoverageFixtures.uiColor(AppTheme.yellow, style: .dark)),
+            4.5
+        )
     }
 
     func testLocalPhoneFixtureAcceptsCommonFormats() {

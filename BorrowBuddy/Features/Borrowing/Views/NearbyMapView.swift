@@ -119,7 +119,7 @@ struct NearbyMapView: View {
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity)
-                        .background(Color.white)
+                        .background(AppTheme.surface)
                         .overlay {
                             Rectangle().stroke(AppTheme.border, lineWidth: 1.5)
                         }
@@ -176,7 +176,7 @@ struct NearbyMapView: View {
         .font(.system(size: 18, weight: .semibold))
         .foregroundStyle(AppTheme.blue)
         .buttonStyle(.plain)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 10))
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 10))
         .overlay { RoundedRectangle(cornerRadius: 10).stroke(AppTheme.border, lineWidth: 1) }
         .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
     }

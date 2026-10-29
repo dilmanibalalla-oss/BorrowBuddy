@@ -43,7 +43,7 @@ struct LoanOutlineButton: View {
                 if let systemImage { Image(systemName: systemImage) }
                 Text(title).font(AppTheme.rounded(15, weight: .bold))
             }.foregroundStyle(AppTheme.blue).frame(maxWidth: .infinity).frame(height: 46)
-                .background(Color.white).overlay(RoundedRectangle(cornerRadius: 11).stroke(AppTheme.blue, lineWidth: 1.5))
+                .background(AppTheme.surface).overlay(RoundedRectangle(cornerRadius: 11).stroke(AppTheme.blue, lineWidth: 1.5))
         }.buttonStyle(.plain).disabled(!enabled)
     }
 }
@@ -95,7 +95,7 @@ struct PickupConfirmedView: View {
                 }.padding(.horizontal, 18).padding(.vertical, 8)
             }
             PrimaryButton(title: "Open active loan", systemImage: "arrow.right") { router.go(to: .activeLoan) }
-                .padding(.horizontal, 18).padding(.vertical, 12).background(Color.white)
+                .padding(.horizontal, 18).padding(.vertical, 12).background(AppTheme.surface)
         }.background(AppTheme.background)
     }
 
@@ -164,7 +164,7 @@ struct ActiveLoanView: View {
                             router.go(to: stage == .returnInspection ? .returnCapture : .toolReturn)
                         }
                     }
-                }.padding(.horizontal, 18).padding(.vertical, 12).background(Color.white)
+                }.padding(.horizontal, 18).padding(.vertical, 12).background(AppTheme.surface)
             } else {
                 LoanOutlineButton(title: "Back to my loans") { router.go(to: .loanList) }.padding(18)
             }
@@ -194,7 +194,7 @@ struct ActiveLoanView: View {
                 Text("Return \(loan.returnAt.borrowingDateTime)").font(.system(size: 12)).foregroundStyle(Color.white)
             }.padding(14)
         }.frame(height: 190).clipped()
-            .overlay(alignment: .topLeading) { LoanBadge(title: "Active").padding(12).background(Color.white.opacity(0.8)) }
+            .overlay(alignment: .topLeading) { LoanBadge(title: "Active").padding(12).background(AppTheme.surface.opacity(0.92)) }
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
@@ -265,7 +265,7 @@ struct OwnerReviewView: View {
                         catch { model.error = error.localizedDescription }
                     }
                 }
-            }.padding(.horizontal, 18).padding(.vertical, 12).background(Color.white)
+            }.padding(.horizontal, 18).padding(.vertical, 12).background(AppTheme.surface)
         }.background(AppTheme.background)
             .sheet(isPresented: $showImage) { if let enlargedImage { EvidencePhotoDetailView(image: enlargedImage) } }
             .sheet(isPresented: $showIssue) {
@@ -315,7 +315,7 @@ struct OwnerReviewView: View {
                 RoundedRectangle(cornerRadius: 8).fill(AppTheme.blue.opacity(0.10))
                 if let image { Image(uiImage: image).resizable().scaledToFit().padding(4) }
                 else { Image(systemName: "photo").foregroundStyle(AppTheme.blue).frame(maxWidth: .infinity, maxHeight: .infinity) }
-                Text("\(phase == .pickup ? "Pickup" : "Return") · \(angle.title)").font(.system(size: 9, design: .monospaced)).foregroundStyle(AppTheme.blue).padding(8).background(Color.white.opacity(0.8))
+                Text("\(phase == .pickup ? "Pickup" : "Return") · \(angle.title)").font(.system(size: 9, design: .monospaced)).foregroundStyle(AppTheme.blue).padding(8).background(AppTheme.surface.opacity(0.92))
             }.clipShape(RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(.plain).accessibilityLabel("\(phase.rawValue) \(angle.title) photo")
     }

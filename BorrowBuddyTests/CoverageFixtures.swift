@@ -170,6 +170,13 @@ final class ScriptedAuthenticationService: AuthenticationService {
         signedInEmail = trimmedEmail
     }
 
+    func signInWithGoogle() async throws {
+        if let signInError { throw signInError }
+        currentUserID = "user-1"
+        currentDisplayName = currentDisplayName ?? "Jordan"
+        signedInEmail = "jordan@gmail.com"
+    }
+
     func sendVerificationCode(to phoneNumber: String) async throws -> String {
         guard DevAuthFixtures.isTestPhone(phoneNumber) else {
             throw AuthenticationError.unknown

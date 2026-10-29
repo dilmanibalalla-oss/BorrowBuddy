@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct AccountSettingsHeader: View {
     let title: String
@@ -57,7 +56,7 @@ struct AccountField: View {
             }
             .padding(.horizontal, 13)
             .frame(height: 48)
-            .background(isEditable ? Color.white : AppTheme.blue.opacity(0.04))
+            .background(isEditable ? AppTheme.surface : AppTheme.blue.opacity(0.16))
             .overlay {
                 RoundedRectangle(cornerRadius: 11).stroke(AppTheme.border, lineWidth: 1.5)
             }
@@ -118,7 +117,7 @@ struct AccountCard<Content: View>: View {
         content
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border, lineWidth: 1)
             }

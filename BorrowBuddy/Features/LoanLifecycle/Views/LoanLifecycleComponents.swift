@@ -86,7 +86,7 @@ struct LoanCard<Content: View>: View {
         content
             .padding(13)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(AppTheme.border, lineWidth: 1.5)
@@ -143,13 +143,13 @@ struct EvidenceThumbnail: View {
             VStack {
                 HStack {
                     Image(systemName: image == nil ? "photo" : "checkmark.circle.fill")
-                        .foregroundStyle(AppTheme.yellow)
+                        .foregroundStyle(image == nil ? AppTheme.onBlue : AppTheme.yellow)
                     Spacer()
                 }
                 Spacer()
                 Text(title)
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(image == nil ? AppTheme.onBlue : Color.white)
             }
             .padding(8)
         }
@@ -193,7 +193,7 @@ struct PickupMapCard: View {
                 .foregroundStyle(AppTheme.blue)
                 .padding(.horizontal, 10)
                 .frame(height: 30)
-                .background(Color.white)
+                .background(AppTheme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 7))
                 .padding(12)
         }

@@ -51,7 +51,6 @@ struct OnboardingOneView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 18)
         }
-        .frame(maxWidth: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
     }

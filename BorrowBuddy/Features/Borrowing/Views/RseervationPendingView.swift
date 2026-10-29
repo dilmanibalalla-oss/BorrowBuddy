@@ -43,7 +43,7 @@ struct ReservationPendingView: View {
                                 BorrowingInfoRow(label: "When", value: loan.returnAt.borrowingDateTime, icon: "clock")
                                 BorrowingInfoRow(label: "Alerts", value: "24 hr + 2 hr before", icon: "bell")
                                 Button("Add event") { Task { await reminder.addEvent(loan, using: dependencies.eventReminderService) } }
-                                    .font(AppTheme.rounded(14, weight: .bold)).foregroundStyle(.white).padding(.horizontal, 24).padding(.vertical, 12)
+                                    .font(AppTheme.rounded(14, weight: .bold)).foregroundStyle(AppTheme.onBlue).padding(.horizontal, 24).padding(.vertical, 12)
                                     .background(AppTheme.blue).clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                         }
@@ -66,7 +66,7 @@ struct ReservationPendingView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
-                .background(Color.white)
+                .background(AppTheme.surface)
             } else if let loan, loan.status == .pending {
                 VStack(spacing: 10) {
                     if isOwner && !loan.ownerAccepted {
@@ -90,7 +90,7 @@ struct ReservationPendingView: View {
                     } else {
                         PrimaryButton(title: loan.ownerAccepted ? "Meet for pickup" : "Waiting for owner", systemImage: "person.2", enabled: loan.ownerAccepted) { router.go(to: .pickupMeet) }
                     }
-                }.padding(.horizontal, 18).padding(.vertical, 12).background(Color.white)
+                }.padding(.horizontal, 18).padding(.vertical, 12).background(AppTheme.surface)
             }
         }.background(AppTheme.background)
             .alert("Cancel this pending reservation?", isPresented: $confirmCancel) {

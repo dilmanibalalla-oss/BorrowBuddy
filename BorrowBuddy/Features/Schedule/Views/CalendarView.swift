@@ -89,7 +89,7 @@ struct CalendarView: View {
                     shiftMonth(by: -1)
                 } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(AppTheme.blue)
                         .frame(width: 32, height: 32)
                 }
@@ -104,7 +104,7 @@ struct CalendarView: View {
                     shiftMonth(by: 1)
                 } label: {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(AppTheme.blue)
                         .frame(width: 32, height: 32)
                 }
@@ -128,7 +128,7 @@ struct CalendarView: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(AppTheme.surface)
         .overlay {
             RoundedRectangle(cornerRadius: 18).stroke(AppTheme.border, lineWidth: 1)
         }
@@ -145,7 +145,7 @@ struct CalendarView: View {
             VStack(spacing: 3) {
                 Text("\(calendar.component(.day, from: day))")
                     .font(.system(size: 14, weight: selected ? .bold : .semibold))
-                    .foregroundStyle(selected ? Color.white : AppTheme.blue)
+                    .foregroundStyle(selected ? AppTheme.onBlue : AppTheme.blue)
                     .frame(width: 30, height: 30)
                     .background(selected ? AppTheme.blue : Color.clear)
                     .clipShape(Circle())
@@ -181,7 +181,7 @@ struct CalendarView: View {
                     .foregroundStyle(AppTheme.green)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
-                    .background(Color.white)
+                    .background(AppTheme.surface)
                     .overlay {
                         RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border, lineWidth: 1)
                     }
@@ -238,7 +238,7 @@ struct CalendarView: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white)
+            .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border, lineWidth: 1)
             }

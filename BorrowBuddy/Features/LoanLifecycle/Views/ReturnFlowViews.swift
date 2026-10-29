@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreLocation
 
 struct ToolReturnView: View {
  @EnvironmentObject private var router: AppRouter
@@ -154,7 +153,7 @@ struct CompareConditionView: View {
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showImage) {
@@ -184,10 +183,10 @@ struct CompareConditionView: View {
     private func filter(_ title: String, selected: Bool) -> some View {
         Text(title)
             .font(.system(size: 12, weight: .bold))
-            .foregroundStyle(selected ? Color.white : AppTheme.green)
+            .foregroundStyle(selected ? AppTheme.onBlue : AppTheme.green)
             .frame(maxWidth: .infinity)
             .frame(height: 31)
-            .background(selected ? AppTheme.blue : Color.white)
+            .background(selected ? AppTheme.blue : AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 7).stroke(selected ? AppTheme.blue : AppTheme.border, lineWidth: 1.5)
             }
@@ -218,7 +217,7 @@ struct CompareConditionView: View {
                     HStack(alignment: .top, spacing: 9) {
                         Text("1")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(AppTheme.onBlue)
                             .frame(width: 23, height: 23)
                             .background(AppTheme.coral)
                             .clipShape(Circle())

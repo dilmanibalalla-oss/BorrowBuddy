@@ -83,7 +83,7 @@ struct PickupMeetView: View {
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
         .refreshable { await refreshReservation() }
@@ -257,7 +257,7 @@ struct ConditionGuideView: View {
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
     }
@@ -287,7 +287,7 @@ struct ConditionGuideView: View {
             Image(systemName: icon)
                 .foregroundStyle(AppTheme.blue)
                 .frame(width: 30, height: 30)
-                .background(Color.white)
+                .background(AppTheme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -366,6 +366,7 @@ struct EvidenceCaptureView: View {
                 router.go(to: isPickup ? .conditionGuide : .arrivalConfirmed)
             } label: {
                 Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .medium))
                     .frame(width: 32, height: 32)
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -634,7 +635,7 @@ struct BaselineReviewView: View {
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
     }
@@ -691,7 +692,7 @@ struct BaselineReviewView: View {
                 HStack(alignment: .top, spacing: 9) {
                     Text("1")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(AppTheme.blue)
+                        .foregroundStyle(AppTheme.onYellow)
                         .frame(width: 24, height: 24)
                         .background(AppTheme.yellow)
                         .clipShape(RoundedRectangle(cornerRadius: 5))

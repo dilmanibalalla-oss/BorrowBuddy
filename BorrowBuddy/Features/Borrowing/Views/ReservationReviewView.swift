@@ -62,7 +62,7 @@ struct ReservationReviewView: View {
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
-            .background(Color.white)
+            .background(AppTheme.surface)
         }
         .background(AppTheme.background)
     }
