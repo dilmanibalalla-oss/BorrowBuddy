@@ -1,30 +1,10 @@
 import CoreLocation
+import UIKit
 import XCTest
 @testable import BorrowBuddy
 
 @MainActor
-final class ProposalFeatureTests: XCTestCase {
-    func testLoginAcceptsTheLocalVerificationCode() {
-        XCTAssertTrue(DevAuthFixtures.isTestPhone("+1 713 123 411"))
-        let model = VerificationViewModel()
-        model.updateCode("000000")
-        XCTAssertEqual(model.errorMessage, "Incorrect verification code.")
-        XCTAssertFalse(model.canVerify)
-        model.updateCode(DevAuthFixtures.testVerificationCode)
-        XCTAssertNil(model.errorMessage)
-        XCTAssertTrue(model.canVerify)
-    }
-
-    func testCreditBalanceMath() {
-        let quote = ReservationQuote.make(for: .demo, days: 2)
-        XCTAssertEqual(quote.totalHold, quote.rentalCredits + quote.serviceCredits + quote.depositCredits)
-        XCTAssertEqual(LendCreditMath.balance(afterHold: quote.totalHold, current: 100), 100 - quote.totalHold)
-        XCTAssertNil(LendCreditMath.balance(afterHold: 40, current: 10))
-        XCTAssertEqual(LendCreditMath.balance(afterPurchase: CreditPack.builder.credits, current: 20), 170)
-        let settlement = LoanSettlement(totalHold: 30, loanCharge: 18, depositRefund: 12)
-        XCTAssertEqual(settlement.balanceChange, 12)
-    }
-
+final class LoanLifecycleTests: XCTestCase {
     func testRentalStateChanges() {
         XCTAssertTrue(LoanLifecyclePolicy.canTransition(from: .active, to: .returnTransit))
         XCTAssertTrue(LoanLifecyclePolicy.canTransition(from: .returnInspection, to: .awaitingReview))
@@ -63,47 +43,6 @@ final class ProposalFeatureTests: XCTestCase {
         XCTAssertEqual(reminders[1].fireAt, returnAt.addingTimeInterval(-7_200))
         XCTAssertEqual(reminders[3].fireAt, returnAt.addingTimeInterval(60 * 60))
         XCTAssertEqual(reminders[4].fireAt, returnAt.addingTimeInterval(NonReturnPolicy.graceInterval))
-    }
-
-    func testOfflineCacheRoundTrip() throws {
-        let store = OfflineCacheStore(inMemory: true)
-        let account = AccountSummary(
-            displayName: "Jordan",
-            neighborhood: "Maple Grove",
-            phoneNumber: "+1 555 0100",
-            creditBalance: 42,
-            creditHeld: 8,
-            streetAddress: "12 Oak Street",
-            identityVerified: true,
-            addressConfirmed: true,
-            isPro: true
-        )
-        store.saveAccount(account)
-        let loaded = try XCTUnwrap(store.loadAccount())
-        XCTAssertEqual(loaded.displayName, "Jordan")
-        XCTAssertEqual(loaded.creditBalance, 42)
-        XCTAssertTrue(loaded.isPro)
-        XCTAssertTrue(loaded.identityVerified)
-
-        store.saveTools([.demo])
-        XCTAssertEqual(store.loadTools().map(\.name), ["Cordless Drill"])
-
-        let loan = sampleLoan()
-        store.saveLoans([loan])
-        XCTAssertEqual(store.loadLoans().map(\.toolName), [loan.toolName])
-    }
-
-    func testStoreKitCatalogAndProRules() {
-        XCTAssertEqual(StoreCatalog.credits(for: StoreCatalog.starterProductID), 50)
-        XCTAssertEqual(StoreCatalog.credits(for: StoreCatalog.builderProductID), 150)
-        XCTAssertNil(StoreCatalog.credits(for: StoreCatalog.proMonthlyProductID))
-        XCTAssertEqual(CreditPack.starter.productID, StoreCatalog.starterProductID)
-        XCTAssertEqual(MembershipPolicy.proWelcomeCredits, 10)
-        XCTAssertTrue(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 0, isPro: false))
-        XCTAssertFalse(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 1, isPro: false))
-        XCTAssertTrue(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 3, isPro: true))
-        XCTAssertFalse(MembershipPolicy.canBorrowHighValueTool(identityVerified: false, addressConfirmed: true))
-        XCTAssertTrue(MembershipPolicy.canBorrowHighValueTool(identityVerified: true, addressConfirmed: true))
     }
 
     func testEvidencePhotoKeepsADateStamp() {
