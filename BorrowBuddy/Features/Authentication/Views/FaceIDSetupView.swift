@@ -124,7 +124,7 @@ struct FaceIDSetupView: View {
         CredentialStore.isFaceIDEnabled = true
         dependencies.pendingCredentials = nil
         try? await dependencies.authenticationService.completeOnboarding()
-        router.go(to: .location)
+        router.go(to: .home)
     }
 
     private func skipFaceID() {

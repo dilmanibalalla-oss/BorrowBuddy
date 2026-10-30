@@ -33,6 +33,7 @@ struct RespondableTextField: UIViewRepresentable {
     var filterDigitsOnly = false
     var focusTrigger: Int = 0
     var accessibilityLabelText: String? = nil
+    var scalesWithDynamicType = true
     var onCommit: (() -> Void)? = nil
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -59,6 +60,7 @@ struct RespondableTextField: UIViewRepresentable {
         field.returnKeyType = .done
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.setContentHuggingPriority(.required, for: .vertical)
         if let textContentType {
             field.textContentType = textContentType
         }
@@ -95,6 +97,7 @@ struct RespondableTextField: UIViewRepresentable {
 
     private var scaledFont: UIFont {
         _ = dynamicTypeSize
+        guard scalesWithDynamicType else { return font }
         return UIFontMetrics(forTextStyle: .body).scaledFont(for: font)
     }
 

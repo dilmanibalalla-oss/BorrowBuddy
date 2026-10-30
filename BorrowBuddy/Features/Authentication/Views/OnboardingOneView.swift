@@ -17,15 +17,7 @@ struct OnboardingOneView: View {
                     .fill(AppTheme.yellow.opacity(0.2))
                     .frame(width: 160, height: 160)
 
-                Image(systemName: "hand.raised.fill")
-                    .font(.system(size: 56, weight: .semibold))
-                    .foregroundStyle(AppTheme.yellow)
-                    .overlay(alignment: .bottomTrailing) {
-                        Image(systemName: "dollarsign.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(AppTheme.blue)
-                            .offset(x: 8, y: 8)
-                    }
+                BorrowBuddyLogo(size: 120)
             }
 
             Text("Share Tools, Earn Credits.")
