@@ -66,7 +66,7 @@ final class BiometricAuthService {
                 localizedReason: reason
             )
         }
-        try? await Task.sleep(for: .milliseconds(1500))
+        try? await Task.sleep(for: .seconds(3))
         context.invalidate()
         _ = await evaluation.value
     }

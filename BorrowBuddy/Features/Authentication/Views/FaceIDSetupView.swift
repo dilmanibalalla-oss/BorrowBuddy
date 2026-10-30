@@ -88,6 +88,13 @@ struct FaceIDSetupView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+        #if targetEnvironment(simulator)
+        .overlay {
+            if isEnabling {
+                simulatorFaceIDScreen
+            }
+        }
+        #endif
         .accessibilityAnnounce(errorMessage)
         .onAppear {
             if let message = BiometricAuthService.shared.availabilityMessage {
@@ -95,6 +102,26 @@ struct FaceIDSetupView: View {
             }
         }
     }
+
+    #if targetEnvironment(simulator)
+    private var simulatorFaceIDScreen: some View {
+        ZStack {
+            Color(white: 0.62)
+                .ignoresSafeArea()
+            VStack(spacing: 18) {
+                Image(systemName: "faceid")
+                    .font(.system(size: 72, weight: .light))
+                    .foregroundStyle(Color(white: 0.15))
+                Text("Face ID")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Color(white: 0.15))
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Face ID")
+        .accessibilityAddTraits(.isImage)
+    }
+    #endif
 
     private func enableFaceID() async {
         isEnabling = true
