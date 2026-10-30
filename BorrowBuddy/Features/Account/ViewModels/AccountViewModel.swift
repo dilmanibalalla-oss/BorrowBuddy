@@ -19,6 +19,11 @@ final class AccountViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
+    func apply(_ account: AccountSummary, cache: OfflineCacheStore? = nil) {
+        self.account = account
+        cache?.saveAccount(account)
+    }
+
     func load(using repository: AccountRepository, cache: OfflineCacheStore? = nil) async {
         isLoading = true
         errorMessage = nil

@@ -30,6 +30,8 @@ final class AppDependencies: ObservableObject {
     @Published var isAuthenticated = false
     /// Latest shed pin, so the tools map can move before the next account read returns.
     @Published var savedShedCoordinate: CLLocationCoordinate2D?
+    /// Profile just saved, so the profile screen can show it before the next read returns.
+    @Published var editedAccount: AccountSummary?
 
     private var cancellables: Set<AnyCancellable> = []
 
