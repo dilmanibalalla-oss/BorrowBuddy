@@ -1,28 +1,29 @@
-import XCTest
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class AccountTests: XCTestCase {
-    func testCreditBalanceMath() {
+struct AccountTests {
+    @Test func `Credit balance math`() {
         let quote = ReservationQuote.make(for: .demo, days: 2)
-        XCTAssertEqual(quote.totalHold, quote.rentalCredits + quote.serviceCredits + quote.depositCredits)
-        XCTAssertEqual(LendCreditMath.balance(afterHold: quote.totalHold, current: 100), 100 - quote.totalHold)
-        XCTAssertNil(LendCreditMath.balance(afterHold: 40, current: 10))
-        XCTAssertEqual(LendCreditMath.balance(afterPurchase: CreditPack.builder.credits, current: 20), 170)
+        #expect(quote.totalHold == quote.rentalCredits + quote.serviceCredits + quote.depositCredits)
+        #expect(LendCreditMath.balance(afterHold: quote.totalHold, current: 100) == 100 - quote.totalHold)
+        #expect(LendCreditMath.balance(afterHold: 40, current: 10) == nil)
+        #expect(LendCreditMath.balance(afterPurchase: CreditPack.builder.credits, current: 20) == 170)
         let settlement = LoanSettlement(totalHold: 30, loanCharge: 18, depositRefund: 12)
-        XCTAssertEqual(settlement.balanceChange, 12)
+        #expect(settlement.balanceChange == 12)
     }
 
-    func testStoreKitCatalogAndProRules() {
-        XCTAssertEqual(StoreCatalog.credits(for: StoreCatalog.starterProductID), 50)
-        XCTAssertEqual(StoreCatalog.credits(for: StoreCatalog.builderProductID), 150)
-        XCTAssertNil(StoreCatalog.credits(for: StoreCatalog.proMonthlyProductID))
-        XCTAssertEqual(CreditPack.starter.productID, StoreCatalog.starterProductID)
-        XCTAssertEqual(MembershipPolicy.proWelcomeCredits, 10)
-        XCTAssertTrue(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 0, isPro: false))
-        XCTAssertFalse(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 1, isPro: false))
-        XCTAssertTrue(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 3, isPro: true))
-        XCTAssertFalse(MembershipPolicy.canBorrowHighValueTool(identityVerified: false, addressConfirmed: true))
-        XCTAssertTrue(MembershipPolicy.canBorrowHighValueTool(identityVerified: true, addressConfirmed: true))
+    @Test func `Store kit catalog and pro rules`() {
+        #expect(StoreCatalog.credits(for: StoreCatalog.starterProductID) == 50)
+        #expect(StoreCatalog.credits(for: StoreCatalog.builderProductID) == 150)
+        #expect(StoreCatalog.credits(for: StoreCatalog.proMonthlyProductID) == nil)
+        #expect(CreditPack.starter.productID == StoreCatalog.starterProductID)
+        #expect(MembershipPolicy.proWelcomeCredits == 10)
+        #expect(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 0, isPro: false))
+        #expect(!(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 1, isPro: false)))
+        #expect(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 3, isPro: true))
+        #expect(!(MembershipPolicy.canBorrowHighValueTool(identityVerified: false, addressConfirmed: true)))
+        #expect(MembershipPolicy.canBorrowHighValueTool(identityVerified: true, addressConfirmed: true))
     }
 }

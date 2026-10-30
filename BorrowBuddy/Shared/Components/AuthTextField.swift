@@ -32,6 +32,7 @@ struct AuthTextField: View {
             Text(title.uppercased())
                 .font(AppTheme.rounded(13, weight: .bold))
                 .foregroundStyle(AppTheme.blue)
+                .accessibilityAddTraits(.isHeader)
 
             RespondableTextField(
                 text: $text,
@@ -41,11 +42,13 @@ struct AuthTextField: View {
                 isSecure: isSecure,
                 autocapitalization: autocapitalization,
                 autocorrection: autocorrection,
-                focusTrigger: focusTrigger
+                focusTrigger: focusTrigger,
+                accessibilityLabelText: title
             )
-            .frame(height: 22)
+            .frame(minHeight: 22)
             .padding(.horizontal, 15)
-            .frame(height: 54)
+            .padding(.vertical, 12)
+            .frame(minHeight: 54)
             .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 11)

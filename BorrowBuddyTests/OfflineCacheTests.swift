@@ -1,9 +1,10 @@
-import XCTest
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class OfflineCacheTests: XCTestCase {
-    func testOfflineCacheRoundTrip() throws {
+struct OfflineCacheTests {
+    @Test func `Offline cache round trip`() throws {
         let store = OfflineCacheStore(inMemory: true)
         let account = AccountSummary(
             displayName: "Jordan",
@@ -17,18 +18,18 @@ final class OfflineCacheTests: XCTestCase {
             isPro: true
         )
         store.saveAccount(account)
-        let loaded = try XCTUnwrap(store.loadAccount())
-        XCTAssertEqual(loaded.displayName, "Jordan")
-        XCTAssertEqual(loaded.creditBalance, 42)
-        XCTAssertTrue(loaded.isPro)
-        XCTAssertTrue(loaded.identityVerified)
+        let loaded = try #require(store.loadAccount())
+        #expect(loaded.displayName == "Jordan")
+        #expect(loaded.creditBalance == 42)
+        #expect(loaded.isPro)
+        #expect(loaded.identityVerified)
 
         store.saveTools([.demo])
-        XCTAssertEqual(store.loadTools().map(\.name), ["Cordless Drill"])
+        #expect(store.loadTools().map(\.name) == ["Cordless Drill"])
 
         let loan = sampleLoan()
         store.saveLoans([loan])
-        XCTAssertEqual(store.loadLoans().map(\.toolName), [loan.toolName])
+        #expect(store.loadLoans().map(\.toolName) == [loan.toolName])
     }
 
     private func sampleLoan(

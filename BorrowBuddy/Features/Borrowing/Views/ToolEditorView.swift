@@ -30,22 +30,33 @@ struct ToolEditorView: View {
                     Text(tool == nil ? "List a tool" : "Edit listing")
                         .font(AppTheme.rounded(25, weight: .heavy))
                         .foregroundStyle(AppTheme.blue)
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(AppTheme.blue.opacity(0.06))
-                                .frame(height: 140)
-                            if let photoData, let image = UIImage(data: photoData) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
+                    if let photoData, let image = UIImage(data: photoData) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 140)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .accessibilityLabel("Photo you added")
+                            .accessibilityAddTraits(.isImage)
+                            .accessibilityRemoveTraits(.isButton)
+                        PhotosPicker(selection: $photoItem, matching: .images) {
+                            Text("Change photo")
+                                .font(AppTheme.rounded(14, weight: .bold))
+                                .foregroundStyle(AppTheme.blue)
+                        }
+                        .accessibilityHint("Replaces the listing photo.")
+                    } else {
+                        PhotosPicker(selection: $photoItem, matching: .images) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(AppTheme.blue.opacity(0.06))
                                     .frame(height: 140)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                            } else {
                                 Label("Add a photo", systemImage: "camera")
                                     .foregroundStyle(AppTheme.blue)
                             }
                         }
+                        .accessibilityHint("Opens your photos.")
                     }
                     field("Tool name", text: $name)
                     Picker("Category", selection: $category) {

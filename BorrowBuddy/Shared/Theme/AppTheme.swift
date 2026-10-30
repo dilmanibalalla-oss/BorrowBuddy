@@ -54,6 +54,13 @@ enum AppTheme {
     }
 
     /// Keeps the designed size at the default content size, then follows Dynamic Type.
+    static func system(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        let base = UIFont.systemFont(ofSize: size, weight: uiWeight(weight))
+        let scaled = UIFontMetrics(forTextStyle: textStyle(for: size)).scaledFont(for: base)
+        return Font(scaled)
+    }
+
+    /// Keeps the designed size at the default content size, then follows Dynamic Type.
     static func rounded(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         let base = UIFont.systemFont(ofSize: size, weight: uiWeight(weight))
         let descriptor = base.fontDescriptor.withDesign(.rounded) ?? base.fontDescriptor
@@ -82,5 +89,24 @@ enum AppTheme {
         if weight == .medium { return .medium }
         if weight == .light || weight == .thin || weight == .ultraLight { return .light }
         return .regular
+    }
+}
+
+extension View {
+    /// Speaks new messages when VoiceOver is running. Empty values are ignored.
+    func accessibilityAnnounce(_ message: String?) -> some View {
+        onChange(of: message) { _, newValue in
+            guard UIAccessibility.isVoiceOverRunning, let newValue, !newValue.isEmpty else { return }
+            UIAccessibility.post(notification: .announcement, argument: newValue)
+        }
+    }
+
+    @ViewBuilder
+    func accessibilityHintIfPresent(_ hint: String?) -> some View {
+        if let hint, !hint.isEmpty {
+            self.accessibilityHint(hint)
+        } else {
+            self
+        }
     }
 }

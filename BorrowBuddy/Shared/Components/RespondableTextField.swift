@@ -32,7 +32,10 @@ struct RespondableTextField: UIViewRepresentable {
     var maxLength: Int? = nil
     var filterDigitsOnly = false
     var focusTrigger: Int = 0
+    var accessibilityLabelText: String? = nil
     var onCommit: (() -> Void)? = nil
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -47,7 +50,8 @@ struct RespondableTextField: UIViewRepresentable {
         field.autocapitalizationType = autocapitalization
         field.autocorrectionType = autocorrection
         field.textAlignment = textAlignment
-        field.font = font
+        field.font = scaledFont
+        field.adjustsFontForContentSizeCategory = false
         field.textColor = isInvisible ? .clear : textColor
         field.tintColor = isInvisible ? .clear : tintColor
         field.backgroundColor = .clear
@@ -73,8 +77,13 @@ struct RespondableTextField: UIViewRepresentable {
         uiView.isSecureTextEntry = isSecure
         uiView.autocapitalizationType = autocapitalization
         uiView.autocorrectionType = autocorrection
+        uiView.font = scaledFont
+        uiView.adjustsFontForContentSizeCategory = false
         uiView.textColor = isInvisible ? .clear : textColor
         uiView.tintColor = isInvisible ? .clear : tintColor
+        if let accessibilityLabelText {
+            uiView.accessibilityLabel = accessibilityLabelText
+        }
 
         if focusTrigger != context.coordinator.lastFocusTrigger {
             context.coordinator.lastFocusTrigger = focusTrigger
@@ -82,6 +91,11 @@ struct RespondableTextField: UIViewRepresentable {
                 uiView.becomeFirstResponder()
             }
         }
+    }
+
+    private var scaledFont: UIFont {
+        _ = dynamicTypeSize
+        return UIFontMetrics(forTextStyle: .body).scaledFont(for: font)
     }
 
     final class Coordinator: NSObject, UITextFieldDelegate {

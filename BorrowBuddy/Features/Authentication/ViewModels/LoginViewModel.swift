@@ -79,6 +79,8 @@ final class LoginViewModel: ObservableObject {
             return "No account found with that email."
         case 17008:
             return AuthenticationError.invalidEmail.localizedDescription
+        case 17006:
+            return "Email sign-in is turned off in Firebase. Enable Email/Password under Authentication. It stays on the free plan."
         case 17020:
             return "Network error. Check your connection and try again."
         default:

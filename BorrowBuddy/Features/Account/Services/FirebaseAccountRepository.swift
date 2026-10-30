@@ -25,6 +25,7 @@ final class FirebaseAccountRepository: AccountRepository {
             neighborhood: stringValue(data["neighborhood"]) ?? "",
             phoneNumber: stringValue(data["phoneNumber"])
                 ?? user.phoneNumber
+                ?? UserDefaults.standard.string(forKey: "verifiedPhone.\(user.uid)")
                 ?? "",
             creditBalance: number(data["creditBalance"]).intValue,
             creditHeld: number(data["creditHeld"]).intValue,

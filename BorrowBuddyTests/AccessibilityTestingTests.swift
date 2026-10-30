@@ -1,46 +1,47 @@
 import UIKit
-import XCTest
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class AccessibilityTestingTests: XCTestCase {
-    func testTextOnTheBackgroundMeetsContrast() {
+struct AccessibilityTestingTests {
+    @Test func `Text on the background meets contrast`() {
         let background = CoverageFixtures.uiColor(AppTheme.background)
-        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.text), on: background), 4.5)
-        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.blue), on: background), 4.5)
-        XCTAssertGreaterThan(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.coral), on: background), 2.5)
+        #expect(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.text), on: background) >= 4.5)
+        #expect(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.blue), on: background) >= 4.5)
+        #expect(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.coral), on: background) > 2.5)
         let darkBackground = CoverageFixtures.uiColor(AppTheme.background, style: .dark)
-        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.text, style: .dark), on: darkBackground), 4.5)
-        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.blue, style: .dark), on: darkBackground), 4.5)
-        XCTAssertGreaterThanOrEqual(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.secondaryText, style: .dark), on: darkBackground), 4.5)
+        #expect(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.text, style: .dark), on: darkBackground) >= 4.5)
+        #expect(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.blue, style: .dark), on: darkBackground) >= 4.5)
+        #expect(CoverageFixtures.contrast(CoverageFixtures.uiColor(AppTheme.secondaryText, style: .dark), on: darkBackground) >= 4.5)
     }
 
-    func testEvidenceAnglesExposeTitlesAndInstructions() {
-        XCTAssertEqual(EvidenceAngle.allCases.count, 8)
+    @Test func `Evidence angles expose titles and instructions`() {
+        #expect(EvidenceAngle.allCases.count == 8)
         for angle in EvidenceAngle.allCases {
-            XCTAssertFalse(angle.title.isEmpty)
-            XCTAssertFalse(angle.instruction.isEmpty)
-            XCTAssertEqual(angle.id, angle.rawValue)
+            #expect(!(angle.title.isEmpty))
+            #expect(!(angle.instruction.isEmpty))
+            #expect(angle.id == angle.rawValue)
         }
-        XCTAssertEqual(EvidenceAngle.caseView.title, "Case")
-        XCTAssertEqual(EvidenceAngle.front.title, "Front")
+        #expect(EvidenceAngle.caseView.title == "Case")
+        #expect(EvidenceAngle.front.title == "Front")
     }
 
-    func testScreenSummariesAndSymbolsHaveLabels() {
+    @Test func `Screen summaries and symbols have labels`() {
         let model = NearbyMapViewModel()
-        XCTAssertEqual(model.resultSummary, "0 AVAILABLE TOOLS · ALL LOCATIONS")
+        #expect(model.resultSummary == "0 AVAILABLE TOOLS · ALL LOCATIONS")
         for name in ["faceid", "chevron.left", "location.fill"] {
             let image = UIImage(systemName: name)
-            XCTAssertNotNil(image)
-            XCTAssertFalse(name.isEmpty)
+            #expect(image != nil)
+            #expect(!(name.isEmpty))
         }
         let verification = VerificationViewModel()
         verification.updateCode("12ab345678")
-        XCTAssertEqual(verification.code.count, 6)
-        XCTAssertTrue(verification.code.allSatisfy(\.isNumber))
+        #expect(verification.code.count == 6)
+        #expect(verification.code.allSatisfy { $0.isNumber })
     }
 
-    func testErrorsAreReadableSentences() {
+    @Test func `Errors are readable sentences`() {
         let messages = [
             AuthenticationError.invalidEmail.localizedDescription,
             AuthenticationError.weakPassword.localizedDescription,
@@ -49,8 +50,8 @@ final class AccessibilityTestingTests: XCTestCase {
             CommunityError.expiredLocation.localizedDescription
         ]
         for message in messages {
-            XCTAssertTrue(message.hasSuffix("."))
-            XCTAssertGreaterThan(message.count, 10)
+            #expect(message.hasSuffix("."))
+            #expect(message.count > 10)
         }
     }
 }

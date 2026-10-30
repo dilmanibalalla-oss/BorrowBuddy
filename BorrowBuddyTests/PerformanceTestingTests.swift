@@ -1,9 +1,10 @@
-import XCTest
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class PerformanceTestingTests: XCTestCase {
-    func testLargeNearbyCatalogLoadsAndSortsQuickly() async {
+struct PerformanceTestingTests {
+    @Test func `Large nearby catalog loads and sorts quickly`() async {
         let repository = InMemoryBorrowingRepository()
         repository.tools = (0..<1_000).map { index in
             CoverageFixtures.tool(
@@ -20,12 +21,12 @@ final class PerformanceTestingTests: XCTestCase {
         await model.load(using: repository)
         model.searchText = "drill"
         _ = model.filteredTools
-        XCTAssertLessThan(Date().timeIntervalSince(started), 2)
-        XCTAssertEqual(model.filteredTools.count, 500)
-        XCTAssertLessThanOrEqual(model.distance(to: model.filteredTools[0]) ?? 0, model.distance(to: model.filteredTools[499]) ?? 0)
+        #expect(Date().timeIntervalSince(started) < 2)
+        #expect(model.filteredTools.count == 500)
+        #expect(model.distance(to: model.filteredTools[0]) ?? 0 <= model.distance(to: model.filteredTools[499]) ?? 0)
     }
 
-    func testLargeLoanCacheRoundTripStaysResponsive() {
+    @Test func `Large loan cache round trip stays responsive`() {
         let store = OfflineCacheStore(inMemory: true)
         let loans = (0..<200).map { index in
             CoverageFixtures.loan(id: "loan-\(index)", returnAt: Date().addingTimeInterval(Double(index)))
@@ -33,8 +34,8 @@ final class PerformanceTestingTests: XCTestCase {
         let started = Date()
         store.saveLoans(loans)
         let loaded = store.loadLoans()
-        XCTAssertLessThan(Date().timeIntervalSince(started), 2)
-        XCTAssertEqual(loaded.count, 200)
-        XCTAssertEqual(loaded.map(\.id), loans.map(\.id))
+        #expect(Date().timeIntervalSince(started) < 2)
+        #expect(loaded.count == 200)
+        #expect(loaded.map(\.id) == loans.map(\.id))
     }
 }

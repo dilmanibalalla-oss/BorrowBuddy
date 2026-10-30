@@ -15,6 +15,8 @@ struct PhoneSignInView: View {
     @State private var focusTrigger = 0
 
     var body: some View {
+        GeometryReader { proxy in
+        ScrollView {
         VStack(alignment: .leading, spacing: 0) {
             BackButton {
                 router.go(to: .signUp)
@@ -27,9 +29,10 @@ struct PhoneSignInView: View {
             Text("Welcome, Neighbor!")
                 .font(AppTheme.rounded(28, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
+                .accessibilityAddTraits(.isHeader)
 
             Text("Join BorrowBuddy. Enter your phone number\nto get verified.")
-                .font(.system(size: 16))
+                .font(AppTheme.system(16))
                 .foregroundStyle(AppTheme.text)
                 .lineSpacing(4)
                 .padding(.top, 7)
@@ -45,21 +48,24 @@ struct PhoneSignInView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Text(viewModel.selectedCountry.flag)
-                            .font(.system(size: 22))
+                            .font(AppTheme.system(22))
                         Text(viewModel.selectedCountry.displayDialCode)
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(AppTheme.system(16, weight: .semibold))
                             .foregroundStyle(AppTheme.text)
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(AppTheme.system(11, weight: .semibold))
+                            .accessibilityHidden(true)
                             .foregroundStyle(AppTheme.secondaryText)
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Country code, \(viewModel.selectedCountry.name)")
+                .accessibilityLabel("Country code, \(viewModel.selectedCountry.name), \(viewModel.selectedCountry.displayDialCode)")
+                .accessibilityHint("Opens the country list.")
 
                 Rectangle()
                     .fill(AppTheme.border)
                     .frame(width: 1, height: 28)
+                    .accessibilityHidden(true)
 
                 RespondableTextField(
                     text: Binding(
@@ -70,14 +76,14 @@ struct PhoneSignInView: View {
                     keyboardType: .numberPad,
                     textContentType: .telephoneNumber,
                     filterDigitsOnly: false,
-                    focusTrigger: focusTrigger
+                    focusTrigger: focusTrigger,
+                    accessibilityLabelText: "Phone number"
                 )
                 .frame(maxWidth: .infinity)
-                .frame(height: 22)
-                .accessibilityLabel("Phone number")
+                .frame(minHeight: 22)
             }
             .padding(.horizontal, 15)
-            .frame(height: 54)
+            .frame(minHeight: 54)
             .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 11)
@@ -90,24 +96,26 @@ struct PhoneSignInView: View {
             }
             .padding(.top, 7)
 
-            Text("By continuing, you agree to receive a single automated SMS\nverification code. Carrier rates may apply.")
-                .font(.system(size: 12.5))
+            Text("The free Firebase plan cannot send texts. Tap continue,\nthen enter code \(DevAuthFixtures.testVerificationCode).")
+                .font(AppTheme.system(12.5))
                 .foregroundStyle(AppTheme.secondaryText)
                 .lineSpacing(3)
                 .padding(.top, 17)
 
             if let errorMessage = viewModel.errorMessage {
                 Text(errorMessage)
-                    .font(.system(size: 13))
+                    .font(AppTheme.system(13))
                     .foregroundStyle(AppTheme.coral)
                     .padding(.top, 12)
+                    .accessibilityLabel(errorMessage)
             }
 
             Spacer()
 
             PrimaryButton(
                 title: viewModel.isLoading ? "Sending..." : "Send Verification Code",
-                enabled: viewModel.canContinue && !viewModel.isLoading
+                enabled: viewModel.canContinue && !viewModel.isLoading,
+                accessibilityHint: "Continues to the verification code."
             ) {
                 Task {
                     if let verificationID = await viewModel.sendCode(
@@ -122,8 +130,13 @@ struct PhoneSignInView: View {
             .padding(.bottom, 18)
         }
         .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+        .accessibilityAnnounce(viewModel.errorMessage)
         .sheet(isPresented: $showCountryPicker, onDismiss: {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 focusTrigger += 1
@@ -166,22 +179,25 @@ private struct CountryPickerView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Text(country.flag)
-                            .font(.system(size: 28))
+                            .font(AppTheme.system(28))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(country.name)
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(AppTheme.system(16, weight: .semibold))
                                 .foregroundStyle(AppTheme.blue)
                             Text(country.displayDialCode)
-                                .font(.system(size: 13))
+                                .font(AppTheme.system(13))
                                 .foregroundStyle(AppTheme.secondaryText)
                         }
                         Spacer()
                         if country == selected {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(AppTheme.blue)
+                                .accessibilityHidden(true)
                         }
                     }
                 }
+                .accessibilityLabel("\(country.name), \(country.displayDialCode)")
+                .accessibilityAddTraits(country == selected ? .isSelected : AccessibilityTraits())
                 .listRowBackground(AppTheme.background)
             }
             .searchable(text: $query, prompt: "Search country")

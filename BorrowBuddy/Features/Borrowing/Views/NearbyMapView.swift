@@ -104,6 +104,7 @@ struct NearbyMapView: View {
                                 .frame(width: 62, height: 62)
                                 .background(Color(red: 0.91, green: 0.90, blue: 0.86))
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .accessibilityHidden(true)
 
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(tool.name)
@@ -125,6 +126,7 @@ struct NearbyMapView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(tool.name), from \(tool.ownerName)")
                     .padding(.horizontal, 5)
                     .padding(.top, 11)
                 }

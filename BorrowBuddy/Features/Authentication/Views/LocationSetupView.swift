@@ -32,9 +32,10 @@ struct LocationSetupView: View {
                         .font(AppTheme.rounded(28, weight: .heavy))
                         .foregroundStyle(AppTheme.blue)
                         .padding(.top, 24)
+                        .accessibilityAddTraits(.isHeader)
 
                     Text("Set your tool shed's location so neighbors can discover your shared tools. Auto-detect with GPS or type your address manually below.")
-                        .font(.system(size: 16))
+                        .font(AppTheme.system(16))
                         .foregroundStyle(AppTheme.blue.opacity(0.85))
                         .lineSpacing(3)
                         .padding(.top, 10)
@@ -42,7 +43,8 @@ struct LocationSetupView: View {
                     PrimaryButton(
                         title: locationManager.isLocating ? "Finding you..." : "Use My Location",
                         systemImage: "location.fill",
-                        enabled: !locationManager.isLocating && !isSaving
+                        enabled: !locationManager.isLocating && !isSaving,
+                        accessibilityHint: "Fills the address from your current location."
                     ) {
                         showMap = true
                         locationManager.requestPermissionAndLocate()
@@ -88,16 +90,18 @@ struct LocationSetupView: View {
 
                     if locationManager.hasResolvedCoordinate {
                         Label("Location pinned on the map", systemImage: "mappin.and.ellipse")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(AppTheme.system(13, weight: .semibold))
                             .foregroundStyle(AppTheme.green)
                             .padding(.top, 14)
+                            .accessibilityLabel("Location pinned on the map")
                     }
 
                     if let message = errorMessage ?? locationManager.errorMessage {
                         Text(message)
-                            .font(.system(size: 13))
+                            .font(AppTheme.system(13))
                             .foregroundStyle(AppTheme.coral)
                             .padding(.top, 14)
+                            .accessibilityLabel(message)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -107,7 +111,8 @@ struct LocationSetupView: View {
 
             PrimaryButton(
                 title: confirmTitle,
-                enabled: canAttemptConfirm
+                enabled: canAttemptConfirm,
+                accessibilityHint: "Saves this address and opens the home screen."
             ) {
                 Task { await confirmLocation() }
             }
@@ -116,6 +121,7 @@ struct LocationSetupView: View {
             .padding(.top, 8)
         }
         .background(AppTheme.background)
+        .accessibilityAnnounce(errorMessage ?? locationManager.errorMessage)
         .sheet(isPresented: $showMap) {
             LocationMapSheet(locationManager: locationManager)
         }
@@ -197,18 +203,19 @@ private struct LocationMapSheet: View {
 
                     if !locationManager.postalCode.isEmpty {
                         Text(locationManager.postalCode)
-                            .font(.system(size: 14))
+                            .font(AppTheme.system(14))
                             .foregroundStyle(AppTheme.secondaryText)
                     }
 
                     if let errorMessage = locationManager.errorMessage {
                         Text(errorMessage)
-                            .font(.system(size: 13))
+                            .font(AppTheme.system(13))
                             .foregroundStyle(AppTheme.coral)
+                            .accessibilityLabel(errorMessage)
                     }
 
                     Text("Tap the map to move the pin.")
-                        .font(.system(size: 12))
+                        .font(AppTheme.system(12))
                         .foregroundStyle(AppTheme.secondaryText)
 
                     PrimaryButton(
