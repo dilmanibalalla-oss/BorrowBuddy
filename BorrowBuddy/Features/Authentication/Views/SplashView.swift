@@ -13,7 +13,11 @@ struct SplashView: View {
         VStack(spacing: 18) {
             Spacer()
 
-            BorrowBuddyLogo(size: 108)
+            Image("BorrowBuddyLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 220, height: 220)
+                .accessibilityLabel("BorrowBuddy")
 
             Text("BorrowBuddy")
                 .font(AppTheme.rounded(34, weight: .heavy))

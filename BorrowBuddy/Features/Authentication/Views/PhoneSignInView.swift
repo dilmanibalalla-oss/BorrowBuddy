@@ -42,18 +42,18 @@ struct PhoneSignInView: View {
                 .foregroundStyle(AppTheme.blue)
                 .padding(.top, 28)
 
-            HStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 Button {
                     showCountryPicker = true
                 } label: {
                     HStack(spacing: 6) {
                         Text(viewModel.selectedCountry.flag)
-                            .font(AppTheme.system(22))
+                            .font(.system(size: 22))
                         Text(viewModel.selectedCountry.displayDialCode)
-                            .font(AppTheme.system(16, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(AppTheme.text)
                         Image(systemName: "chevron.down")
-                            .font(AppTheme.system(11, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .accessibilityHidden(true)
                             .foregroundStyle(AppTheme.secondaryText)
                     }
@@ -75,15 +75,17 @@ struct PhoneSignInView: View {
                     placeholder: "11 234 5678",
                     keyboardType: .numberPad,
                     textContentType: .telephoneNumber,
+                    font: .systemFont(ofSize: 16, weight: .semibold),
                     filterDigitsOnly: false,
                     focusTrigger: focusTrigger,
-                    accessibilityLabelText: "Phone number"
+                    accessibilityLabelText: "Phone number",
+                    scalesWithDynamicType: false
                 )
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 22)
+                .frame(height: 22)
             }
             .padding(.horizontal, 15)
-            .frame(minHeight: 54)
+            .frame(height: 54)
             .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 11)

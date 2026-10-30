@@ -17,9 +17,11 @@ struct OnboardingTwoView: View {
                     .fill(AppTheme.blue.opacity(0.08))
                     .frame(width: 160, height: 160)
 
-                Image(systemName: "shield.checkered")
-                    .font(.system(size: 64, weight: .semibold))
-                    .foregroundStyle(AppTheme.blue)
+                Image("CatalogToolArtwork")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+                    .accessibilityHidden(true)
             }
 
             Text("Stay Safe & Covered.")

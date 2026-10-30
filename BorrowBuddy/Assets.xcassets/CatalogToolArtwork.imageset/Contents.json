@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "CatalogToolArtwork.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
