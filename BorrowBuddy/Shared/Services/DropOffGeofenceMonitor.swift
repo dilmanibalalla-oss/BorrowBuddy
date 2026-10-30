@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import _LocationEssentials
 
 extension Notification.Name {
     static let dropOffRegionEntered = Notification.Name("borrowbuddy.dropOffRegionEntered")
@@ -69,3 +70,4 @@ final class DropOffGeofenceMonitor: NSObject, CLLocationManagerDelegate {
         )
     }
 }
+

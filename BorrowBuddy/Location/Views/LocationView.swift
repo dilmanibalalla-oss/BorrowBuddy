@@ -1,4 +1,5 @@
 import SwiftUI
+import _LocationEssentials
 
 struct LocationView: View {
     @EnvironmentObject private var router: AppRouter
@@ -135,3 +136,4 @@ struct LocationView: View {
             .clipShape(RoundedRectangle(cornerRadius: 11))
     }
 }
+

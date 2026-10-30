@@ -8,6 +8,7 @@ import CoreLocation
 import Foundation
 import MapKit
 import SwiftUI
+import _LocationEssentials
 
 @MainActor
 final class LocationManager: NSObject, ObservableObject {
@@ -289,3 +290,4 @@ extension LocationManager: CLLocationManagerDelegate {
         }
     }
 }
+

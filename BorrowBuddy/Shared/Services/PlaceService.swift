@@ -1,6 +1,7 @@
 import CoreLocation
 import Combine
 import Foundation
+import _LocationEssentials
 
 enum PlaceService {
     static func coordinate(for address: String) async throws -> CLLocationCoordinate2D {
@@ -64,3 +65,4 @@ final class ArrivalLocationService: NSObject, ObservableObject, @preconcurrency 
         return location.horizontalAccuracy
     }
 }
+

@@ -1,5 +1,6 @@
 import CoreLocation
 import Combine
+import _LocationEssentials
 
 final class LocationViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var streetAddress = ""
@@ -43,3 +44,4 @@ final class LocationViewModel: NSObject, ObservableObject, CLLocationManagerDele
         locationStatus = "Enter your address manually to continue."
     }
 }
+

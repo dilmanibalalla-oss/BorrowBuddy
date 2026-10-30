@@ -6,6 +6,7 @@
 import Combine
 import CoreLocation
 import Foundation
+import _LocationEssentials
 
 @MainActor
 final class AppDependencies: ObservableObject {
@@ -167,3 +168,4 @@ final class LocalNotificationService: NotificationService {
         await loans.deliver(title: title, body: body)
     }
 }
+

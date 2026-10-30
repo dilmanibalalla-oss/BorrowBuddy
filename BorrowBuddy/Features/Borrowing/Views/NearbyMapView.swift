@@ -1,5 +1,6 @@
 import MapKit
 import SwiftUI
+import _LocationEssentials
 
 struct NearbyMapView: View {
     @EnvironmentObject private var router: AppRouter
@@ -265,3 +266,4 @@ struct NearbyMapView: View {
         }
     }
 }
+

@@ -1,4 +1,5 @@
 import SwiftUI
+import _LocationEssentials
 
 struct ToolReturnView: View {
  @EnvironmentObject private var router: AppRouter
@@ -254,3 +255,4 @@ struct CompareConditionView: View {
         .onTapGesture { if let photo, let image = lifecycle.image(for: photo) { enlargedImage = image; showImage = true } }
     }
 }
+
