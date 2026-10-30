@@ -52,6 +52,25 @@ final class BiometricAuthService {
         }
     }
 
+    /// Simulator cannot complete a real face match. Show the system sheet, then dismiss it.
+    func showSimulatorPrompt(reason: String) async {
+        let context = LAContext()
+        context.localizedCancelTitle = "Cancel"
+        context.localizedFallbackTitle = ""
+        activeContext = context
+        defer { activeContext = nil }
+
+        let evaluation = Task { @MainActor in
+            _ = try? await context.evaluatePolicy(
+                .deviceOwnerAuthenticationWithBiometrics,
+                localizedReason: reason
+            )
+        }
+        try? await Task.sleep(for: .milliseconds(1500))
+        context.invalidate()
+        _ = await evaluation.value
+    }
+
     func authenticate(reason: String) async throws -> Bool {
         guard activeContext == nil else {
             throw BiometricError.unavailable("Authentication is already in progress.")

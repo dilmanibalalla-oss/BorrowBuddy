@@ -48,21 +48,36 @@ struct HomeView: View {
                         }
                     }
                     VStack(alignment: .leading, spacing: 11) {
-                        Button { router.go(to: .loanList) } label: { heading("Active rental") }.buttonStyle(.plain).accessibilityLabel("Active rental and loan history")
+                        HStack {
+                            heading("Active rental")
+                                .accessibilityAddTraits(.isHeader)
+                            Spacer()
+                            Button("Loan history") { router.go(to: .loanList) }
+                                .font(AppTheme.rounded(13, weight: .bold))
+                                .foregroundStyle(AppTheme.blue)
+                                .accessibilityHint("Opens your loans.")
+                        }
                         if let loan = activeRental {
-                            Button { dependencies.open(loan, router: router) } label: { rentalCard(loan) }.buttonStyle(.plain)
+                            rentalCard(loan)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(rentalSummary(loan))
+                                .accessibilityAddTraits(.isStaticText)
+                                .accessibilityRemoveTraits(.isButton)
                         } else {
                             LoanCard { Text(model.sectionErrors["Loan history"] == nil ? "No active rental yet" : "Unable to load rentals. Pull down to retry.").font(.system(size: 13)).foregroundStyle(AppTheme.green).frame(minHeight: 62) }
                         }
                     }
                     VStack(alignment: .leading, spacing: 11) {
                         heading("Featured near you")
+                            .accessibilityAddTraits(.isHeader)
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
                                 ForEach(model.nearbyTools.prefix(5)) { tool in
-                                    Button {
-                                        dependencies.borrowingFlow.select(tool); router.go(to: .toolDetails)
-                                    } label: { featured(tool) }.buttonStyle(.plain)
+                                    featured(tool)
+                                        .accessibilityElement(children: .ignore)
+                                        .accessibilityLabel("\(tool.name). \(featureDetail(tool))")
+                                        .accessibilityAddTraits(.isStaticText)
+                                        .accessibilityRemoveTraits(.isButton)
                                 }
                             }
                         }
@@ -73,12 +88,15 @@ struct HomeView: View {
                     if !recentlyAdded.isEmpty {
                         VStack(alignment: .leading, spacing: 11) {
                             heading("Recently added")
+                                .accessibilityAddTraits(.isHeader)
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 12) {
                                     ForEach(recentlyAdded.prefix(5)) { tool in
-                                        Button {
-                                            dependencies.borrowingFlow.select(tool); router.go(to: .toolDetails)
-                                        } label: { featured(tool) }.buttonStyle(.plain)
+                                        featured(tool)
+                                            .accessibilityElement(children: .ignore)
+                                            .accessibilityLabel("\(tool.name). \(featureDetail(tool))")
+                                            .accessibilityAddTraits(.isStaticText)
+                                            .accessibilityRemoveTraits(.isButton)
                                     }
                                 }
                             }
@@ -86,9 +104,11 @@ struct HomeView: View {
                     }
                     VStack(alignment: .leading, spacing: 11) {
                         heading("Recent activity")
+                            .accessibilityAddTraits(.isHeader)
                         ForEach(model.ledger.prefix(2)) { entry in
                             HStack(spacing: 9) {
                                 Circle().fill(entry.credits >= 0 ? AppTheme.green : AppTheme.coral).frame(width: 8, height: 8)
+                                    .accessibilityHidden(true)
                                 Text(entry.detail.isEmpty ? entry.title : entry.detail).font(.system(size: 14)).foregroundStyle(AppTheme.text).lineLimit(1)
                                 Spacer()
                                 if entry.kind == .credit {
@@ -96,7 +116,11 @@ struct HomeView: View {
                                 } else {
                                     Text(entry.kind == .pickup ? "Pickup" : "Return").font(.system(size: 12.5, weight: .bold)).foregroundStyle(AppTheme.blue)
                                 }
-                            }.padding(12).background(AppTheme.surface).clipShape(RoundedRectangle(cornerRadius: 13))
+                            }
+                            .padding(12).background(AppTheme.surface).clipShape(RoundedRectangle(cornerRadius: 13))
+                            .accessibilityElement(children: .combine)
+                            .accessibilityAddTraits(.isStaticText)
+                            .accessibilityRemoveTraits(.isButton)
                         }
                         if model.ledger.isEmpty && !model.isLoading { Text(model.sectionErrors["Wallet activity"] == nil ? "No recent activity" : "Unable to load activity. Pull down to retry.").font(.system(size: 12.5)).foregroundStyle(AppTheme.green) }
                     }
@@ -111,6 +135,13 @@ struct HomeView: View {
             .sheet(isPresented: $showToolEditor, onDismiss: { Task { await refreshHome() } }) {
                 ToolEditorView(tool: nil).environmentObject(dependencies)
             }
+    }
+
+    private func rentalSummary(_ loan: ReservationRecord) -> String {
+        let who = loan.borrowerID == dependencies.authenticationService.currentUserID
+            ? "Borrowed from \(loan.ownerName)"
+            : "Lent to \(loan.borrowerName)"
+        return "\(loan.toolName), due \(loan.returnAt.formatted(.dateTime.weekday(.wide))). \(who)"
     }
 
     private func heading(_ value: String) -> some View {

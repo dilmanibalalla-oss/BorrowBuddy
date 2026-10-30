@@ -2,7 +2,7 @@
 //  DevAuthFixtures.swift
 //  BorrowBuddy
 //
-//  Local test phone — skips Firebase SMS entirely (no paid SMS / app verification needed).
+//  Local phone check — skips Firebase SMS so the free Spark plan can be used.
 //
 
 import Foundation

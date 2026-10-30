@@ -1,9 +1,10 @@
-import XCTest
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class IntegrationTestingTests: XCTestCase {
-    func testSignupVerificationAndOnboardingStayConnected() async throws {
+struct IntegrationTestingTests {
+    @Test func `Signup verification and onboarding stay connected`() async throws {
         let service = ScriptedAuthenticationService()
         service.currentUserID = nil
         let signUp = SignUpViewModel()
@@ -11,7 +12,7 @@ final class IntegrationTestingTests: XCTestCase {
         signUp.email = "Jordan@Example.com"
         signUp.password = "secret1"
         let signedUp = await signUp.signUp(using: service)
-        XCTAssertTrue(signedUp)
+        #expect(signedUp)
 
         let phone = PhoneSignInViewModel()
         phone.format(DevAuthFixtures.testPhoneDigits)
@@ -19,48 +20,48 @@ final class IntegrationTestingTests: XCTestCase {
         let verification = VerificationViewModel()
         verification.updateCode(DevAuthFixtures.testVerificationCode)
         let verified = await verification.verify(phoneNumber: phone.fullPhoneNumber, verificationID: verificationID, using: service)
-        XCTAssertTrue(verified)
+        #expect(verified)
 
         try await service.completeOnboarding()
         let onboarded = try await service.hasCompletedOnboarding()
-        XCTAssertTrue(onboarded)
-        XCTAssertEqual(service.currentUserID, "user-1")
+        #expect(onboarded)
+        #expect(service.currentUserID == "user-1")
     }
 
-    func testNearbyLoadWritesTheOfflineCache() async {
+    @Test func `Nearby load writes the offline cache`() async {
         let repository = InMemoryBorrowingRepository()
         repository.tools = [.demo]
         let cache = OfflineCacheStore(inMemory: true)
         let model = NearbyMapViewModel()
         await model.load(using: repository, cache: cache)
-        XCTAssertEqual(cache.loadTools().map(\.id), [BorrowingTool.demo.id])
-        XCTAssertNil(model.errorMessage)
-        XCTAssertTrue(model.hasLoaded)
+        #expect(cache.loadTools().map(\.id) == [BorrowingTool.demo.id])
+        #expect(model.errorMessage == nil)
+        #expect(model.hasLoaded)
     }
 
-    func testNearbyLoadFallsBackToSavedTools() async {
+    @Test func `Nearby load falls back to saved tools`() async {
         let cache = OfflineCacheStore(inMemory: true)
         cache.saveTools([.demo])
         let repository = InMemoryBorrowingRepository()
         repository.error = URLError(.notConnectedToInternet)
         let model = NearbyMapViewModel()
         await model.load(using: repository, cache: cache)
-        XCTAssertEqual(model.filteredTools.map(\.name), ["Cordless Drill"])
-        XCTAssertEqual(model.errorMessage, "Showing saved tools while you're offline.")
+        #expect(model.filteredTools.map(\.name) == ["Cordless Drill"])
+        #expect(model.errorMessage == "Showing saved tools while you're offline.")
     }
 
-    func testProfileSaveReadsBackFromTheAccountRepository() async throws {
+    @Test func `Profile save reads back from the account repository`() async throws {
         let repository = InMemoryAccountRepository()
         let model = AccountSettingsViewModel()
         let saved = await model.saveProfile(displayName: " Jordan ", neighborhood: " Maple Grove ", phoneNumber: " +1 555 0100 ", using: repository)
-        XCTAssertTrue(saved)
-        XCTAssertEqual(model.successMessage, "Profile saved.")
+        #expect(saved)
+        #expect(model.successMessage == "Profile saved.")
         let loaded = try await repository.loadAccount()
-        XCTAssertEqual(loaded.displayName, "Jordan")
-        XCTAssertEqual(loaded.neighborhood, "Maple Grove")
-        XCTAssertEqual(loaded.phoneNumber, "+1 555 0100")
+        #expect(loaded.displayName == "Jordan")
+        #expect(loaded.neighborhood == "Maple Grove")
+        #expect(loaded.phoneNumber == "+1 555 0100")
         try await repository.recordStorePurchase(transactionID: "txn-1", productID: StoreCatalog.starterProductID, credits: 50, title: "Starter", detail: "Card")
         let balance = try await repository.loadAccount().creditBalance
-        XCTAssertEqual(balance, 92)
+        #expect(balance == 92)
     }
 }

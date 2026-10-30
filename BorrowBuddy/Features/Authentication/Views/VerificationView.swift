@@ -15,6 +15,8 @@ struct VerificationView: View {
     @State private var isFieldFocused = false
 
     var body: some View {
+        GeometryReader { proxy in
+        ScrollView {
         VStack(alignment: .leading, spacing: 0) {
             BackButton {
                 router.go(to: .signIn)
@@ -27,9 +29,10 @@ struct VerificationView: View {
             Text("Enter 6-Digit Code")
                 .font(AppTheme.rounded(28, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
+                .accessibilityAddTraits(.isHeader)
 
-            (Text("We texted a secure code to ") + Text(dependencies.verificationPhoneNumber).bold())
-                .font(.system(size: 16))
+            (Text("No text is sent on the free plan. Enter \(DevAuthFixtures.testVerificationCode) for ") + Text(dependencies.verificationPhoneNumber).bold())
+                .font(AppTheme.system(16))
                 .foregroundStyle(AppTheme.text)
                 .padding(.top, 8)
 
@@ -45,10 +48,13 @@ struct VerificationView: View {
                     isInvisible: true,
                     maxLength: 6,
                     filterDigitsOnly: true,
-                    focusTrigger: focusTrigger
+                    focusTrigger: focusTrigger,
+                    accessibilityLabelText: "Six digit verification code"
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityLabel("Six digit verification code")
+                .accessibilityValue(viewModel.code.isEmpty ? "Empty" : "\(viewModel.code.count) of 6 digits entered")
+                .accessibilityHint("Enter the 6 digit code.")
 
                 HStack(spacing: 9) {
                     ForEach(0..<6, id: \.self) { index in
@@ -58,7 +64,7 @@ struct VerificationView: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
-            .frame(height: 58)
+            .frame(minHeight: 58)
             .padding(.top, 31)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -69,47 +75,64 @@ struct VerificationView: View {
             HStack(spacing: 5) {
                 Text("Didn't get the text?")
                     .foregroundStyle(AppTheme.text)
+                    .accessibilityAddTraits(.isStaticText)
 
-                Button {
-                    Task {
-                        if let verificationID = await viewModel.resend(
-                            to: dependencies.verificationPhoneNumber,
-                            using: dependencies.authenticationService
-                        ) {
-                            dependencies.verificationID = verificationID
-                            focusTrigger += 1
+                if viewModel.secondsRemaining == 0 && !viewModel.isLoading {
+                    Button {
+                        Task {
+                            if let verificationID = await viewModel.resend(
+                                to: dependencies.verificationPhoneNumber,
+                                using: dependencies.authenticationService
+                            ) {
+                                dependencies.verificationID = verificationID
+                                focusTrigger += 1
+                            }
                         }
+                    } label: {
+                        Text("Resend Code")
+                            .fontWeight(.bold)
+                            .underline()
+                            .foregroundStyle(AppTheme.blue)
                     }
-                } label: {
+                    .accessibilityLabel("Resend code")
+                    .accessibilityHint("Sends the verification code again.")
+                    .accessibilityAddTraits(.isButton)
+                } else {
                     Text("Resend Code (\(viewModel.secondsRemaining)s)")
                         .fontWeight(.bold)
-                        .underline()
-                        .foregroundStyle(AppTheme.blue)
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .accessibilityLabel("Resend code")
+                        .accessibilityValue("Available in \(viewModel.secondsRemaining) seconds")
+                        .accessibilityAddTraits(.isStaticText)
+                        .accessibilityRemoveTraits(.isButton)
                 }
-                .disabled(viewModel.secondsRemaining > 0 || viewModel.isLoading)
             }
-            .font(.system(size: 14))
+            .font(AppTheme.system(14))
             .padding(.top, 31)
+            .accessibilityElement(children: .contain)
 
             if let errorMessage = viewModel.errorMessage {
                 Text(errorMessage)
-                    .font(.system(size: 13))
+                    .font(AppTheme.system(13))
                     .foregroundStyle(AppTheme.coral)
                     .padding(.top, 12)
+                    .accessibilityLabel(errorMessage)
             }
 
             if let statusMessage = viewModel.statusMessage {
                 Label(statusMessage, systemImage: "checkmark.shield")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(AppTheme.system(13, weight: .semibold))
                     .foregroundStyle(AppTheme.green)
                     .padding(.top, 12)
+                    .accessibilityLabel(statusMessage)
             }
 
             Spacer()
 
             PrimaryButton(
                 title: viewModel.isLoading ? "Verifying..." : "Verify Code",
-                enabled: viewModel.canVerify && !viewModel.isLoading
+                enabled: viewModel.canVerify && !viewModel.isLoading,
+                accessibilityHint: "Checks the code and continues."
             ) {
                 Task {
                     if await viewModel.verify(
@@ -126,8 +149,13 @@ struct VerificationView: View {
             .padding(.bottom, 18)
         }
         .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+        .accessibilityAnnounce(viewModel.errorMessage ?? viewModel.statusMessage)
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 focusTrigger += 1
@@ -146,7 +174,7 @@ struct VerificationView: View {
             .font(AppTheme.rounded(24, weight: .bold))
             .foregroundStyle(AppTheme.blue)
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(minHeight: 54)
             .background(AppTheme.surface)
             .overlay {
                 RoundedRectangle(cornerRadius: 11)

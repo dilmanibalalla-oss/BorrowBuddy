@@ -1,26 +1,27 @@
 import UIKit
-import XCTest
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class DatabaseTestingTests: XCTestCase {
-    func testAccountSaveUpdateAndRetrieveStayConsistent() {
+struct DatabaseTestingTests {
+    @Test func `Account save update and retrieve stay consistent`() {
         let store = OfflineCacheStore(inMemory: true)
-        XCTAssertNil(store.loadAccount())
+        #expect(store.loadAccount() == nil)
         store.saveAccount(CoverageFixtures.account(name: "Jordan", balance: 42))
         store.saveAccount(CoverageFixtures.account(name: "Jordan Lee", balance: 70, identityVerified: true, isPro: true))
         let loaded = store.loadAccount()
-        XCTAssertEqual(loaded?.displayName, "Jordan Lee")
-        XCTAssertEqual(loaded?.creditBalance, 70)
-        XCTAssertEqual(loaded?.identityVerified, true)
-        XCTAssertEqual(loaded?.isPro, true)
+        #expect(loaded?.displayName == "Jordan Lee")
+        #expect(loaded?.creditBalance == 70)
+        #expect(loaded?.identityVerified == true)
+        #expect(loaded?.isPro == true)
     }
 
-    func testToolAndLoanRecordsReplaceInsteadOfDuplicating() {
+    @Test func `Tool and loan records replace instead of duplicating`() {
         let store = OfflineCacheStore(inMemory: true)
         store.saveTools([CoverageFixtures.tool(id: "drill"), CoverageFixtures.tool(id: "ladder", name: "Ladder")])
         store.saveTools([CoverageFixtures.tool(id: "saw", name: "Saw")])
-        XCTAssertEqual(store.loadTools().map(\.id), ["saw"])
+        #expect(store.loadTools().map(\.id) == ["saw"])
 
         let loan = CoverageFixtures.loan(id: "loan-1", status: .pending, stage: .pending)
         store.saveLoans([loan])
@@ -29,31 +30,31 @@ final class DatabaseTestingTests: XCTestCase {
         updated.lifecycleStage = .active
         store.saveLoans([updated])
         let loaded = store.loadLoans()
-        XCTAssertEqual(loaded.map(\.id), ["loan-1"])
-        XCTAssertEqual(loaded.first?.status, .active)
-        XCTAssertEqual(loaded.first?.lifecycleStage, .active)
-        XCTAssertEqual(loaded.first?.toolName, loan.toolName)
+        #expect(loaded.map(\.id) == ["loan-1"])
+        #expect(loaded.first?.status == .active)
+        #expect(loaded.first?.lifecycleStage == .active)
+        #expect(loaded.first?.toolName == loan.toolName)
     }
 
-    func testClearingACollectionRemovesTheSavedRows() {
+    @Test func `Clearing acollection removes the saved rows`() {
         let store = OfflineCacheStore(inMemory: true)
         store.saveTools([.demo])
         store.saveLoans([CoverageFixtures.loan()])
         store.saveTools([])
-        XCTAssertTrue(store.loadTools().isEmpty)
-        XCTAssertEqual(store.loadLoans().map(\.id), ["loan-1"])
+        #expect(store.loadTools().isEmpty)
+        #expect(store.loadLoans().map(\.id) == ["loan-1"])
         store.saveLoans([])
-        XCTAssertTrue(store.loadLoans().isEmpty)
+        #expect(store.loadLoans().isEmpty)
     }
 
-    func testEncodedPhotoStaysWithinTheStoredSizeLimit() throws {
+    @Test func `Encoded photo stays within the stored size limit`() throws {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 80, height: 80)).image { context in
             UIColor.blue.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 80, height: 80))
         }
         let data = try PhotoEncoding.jpeg(image)
-        XCTAssertFalse(data.isEmpty)
-        XCTAssertLessThanOrEqual(data.count, PhotoEncoding.maximumBytes)
-        XCTAssertNotNil(UIImage(data: data))
+        #expect(!(data.isEmpty))
+        #expect(data.count <= PhotoEncoding.maximumBytes)
+        #expect(UIImage(data: data) != nil)
     }
 }

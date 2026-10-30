@@ -431,6 +431,9 @@ struct EvidenceCaptureView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
+                    .accessibilityLabel("Photo you added")
+                    .accessibilityAddTraits(.isImage)
+                    .accessibilityRemoveTraits(.isButton)
             }
             grid
             VStack {

@@ -38,13 +38,31 @@ struct LoanOutlineButton: View {
     var enabled = true
     let action: () -> Void
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                if let systemImage { Image(systemName: systemImage) }
-                Text(title).font(AppTheme.rounded(15, weight: .bold))
-            }.foregroundStyle(AppTheme.blue).frame(maxWidth: .infinity).frame(height: 46)
-                .background(AppTheme.surface).overlay(RoundedRectangle(cornerRadius: 11).stroke(AppTheme.blue, lineWidth: 1.5))
-        }.buttonStyle(.plain).disabled(!enabled)
+        if enabled {
+            Button(action: action) {
+                HStack(spacing: 8) {
+                    if let systemImage { Image(systemName: systemImage).accessibilityHidden(true) }
+                    Text(title).font(AppTheme.rounded(15, weight: .bold))
+                }
+                .foregroundStyle(AppTheme.blue)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 46)
+                .background(AppTheme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 11).stroke(AppTheme.blue, lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(title)
+            .accessibilityAddTraits(.isButton)
+        } else {
+            Text(title)
+                .font(AppTheme.system(15, weight: .semibold))
+                .foregroundStyle(AppTheme.secondaryText)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: 46)
+                .accessibilityLabel(title)
+                .accessibilityAddTraits(.isStaticText)
+                .accessibilityRemoveTraits(.isButton)
+        }
     }
 }
 
@@ -308,16 +326,34 @@ struct OwnerReviewView: View {
     private func photo(phase: EvidencePhase, angle: EvidenceAngle) -> some View {
         let evidence = lifecycle.photos(for: phase).first { $0.angle == angle }
         let image = evidence.flatMap { lifecycle.image(for: $0) }
-        return Button {
-            enlargedImage = image; showImage = image != nil
-        } label: {
+        let caption = "\(phase == .pickup ? "Pickup" : "Return") · \(angle.title)"
+        return VStack(spacing: 4) {
             ZStack(alignment: .bottomLeading) {
                 RoundedRectangle(cornerRadius: 8).fill(AppTheme.blue.opacity(0.10))
-                if let image { Image(uiImage: image).resizable().scaledToFit().padding(4) }
-                else { Image(systemName: "photo").foregroundStyle(AppTheme.blue).frame(maxWidth: .infinity, maxHeight: .infinity) }
-                Text("\(phase == .pickup ? "Pickup" : "Return") · \(angle.title)").font(.system(size: 9, design: .monospaced)).foregroundStyle(AppTheme.blue).padding(8).background(AppTheme.surface.opacity(0.92))
+                if let image {
+                    Image(uiImage: image).resizable().scaledToFit().padding(4)
+                        .accessibilityLabel(caption)
+                        .accessibilityAddTraits(.isImage)
+                        .accessibilityRemoveTraits(.isButton)
+                } else {
+                    Image(systemName: "photo").foregroundStyle(AppTheme.blue).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityLabel("No \(caption) photo yet")
+                        .accessibilityAddTraits(.isImage)
+                        .accessibilityRemoveTraits(.isButton)
+                }
+                Text(caption).font(.system(size: 9, design: .monospaced)).foregroundStyle(AppTheme.blue).padding(8).background(AppTheme.surface.opacity(0.92))
+                    .accessibilityHidden(true)
             }.clipShape(RoundedRectangle(cornerRadius: 8))
-        }.buttonStyle(.plain).accessibilityLabel("\(phase.rawValue) \(angle.title) photo")
+            if image != nil {
+                Button("View") {
+                    enlargedImage = image
+                    showImage = true
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(AppTheme.blue)
+                .accessibilityLabel("View \(caption) photo")
+            }
+        }
     }
 }
 

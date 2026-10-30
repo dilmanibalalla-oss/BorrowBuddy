@@ -62,8 +62,13 @@ struct ToolAssetImage: View {
         Group {
             if let imageData, let image = UIImage(data: imageData) {
                 Image(uiImage: image).resizable().scaledToFit()
+                    .accessibilityLabel("Photo added by the neighbor")
+                    .accessibilityAddTraits(.isImage)
+                    .accessibilityRemoveTraits(.isButton)
             } else if remoteURL == nil, let imageReference, let image = UIImage(named: imageReference) {
                 Image(uiImage: image).resizable().scaledToFit()
+                    .accessibilityAddTraits(.isImage)
+                    .accessibilityRemoveTraits(.isButton)
             } else if let remoteURL {
                 AsyncImage(url: remoteURL) { phase in
                     switch phase {

@@ -1,43 +1,41 @@
-import XCTest
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class AuthorizationTestingTests: XCTestCase {
-    func testBorrowLimitsFollowRoleAndVerification() {
-        XCTAssertTrue(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 0, isPro: false))
-        XCTAssertFalse(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 1, isPro: false))
-        XCTAssertTrue(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 3, isPro: true))
-        XCTAssertFalse(MembershipPolicy.canBorrowHighValueTool(identityVerified: false, addressConfirmed: true))
-        XCTAssertFalse(MembershipPolicy.canBorrowHighValueTool(identityVerified: true, addressConfirmed: false))
-        XCTAssertTrue(MembershipPolicy.canBorrowHighValueTool(identityVerified: true, addressConfirmed: true))
+struct AuthorizationTestingTests {
+    @Test func `Borrow limits follow role and verification`() {
+        #expect(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 0, isPro: false))
+        #expect(!(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 1, isPro: false)))
+        #expect(MembershipPolicy.canStartAnotherBorrow(openBorrowCount: 3, isPro: true))
+        #expect(!(MembershipPolicy.canBorrowHighValueTool(identityVerified: false, addressConfirmed: true)))
+        #expect(!(MembershipPolicy.canBorrowHighValueTool(identityVerified: true, addressConfirmed: false)))
+        #expect(MembershipPolicy.canBorrowHighValueTool(identityVerified: true, addressConfirmed: true))
     }
 
-    func testPickupIsRestrictedToTheBorrower() {
+    @Test func `Pickup is restricted to the borrower`() {
         let loan = CoverageFixtures.loan(status: .pending, stage: .pickupInspection, ownerAccepted: true)
-        XCTAssertEqual(PickupInspectionEligibility.blocker(for: loan, userID: "someone-else", kitConfirmed: true, wearReviewed: true), .wrongAccount)
-        XCTAssertEqual(PickupInspectionEligibility.blocker(for: loan, userID: nil, kitConfirmed: true, wearReviewed: true), .wrongAccount)
-        XCTAssertEqual(PickupInspectionEligibility.blocker(for: nil, userID: "borrower", kitConfirmed: true, wearReviewed: true), .missingReservation)
-        XCTAssertEqual(
-            PickupInspectionEligibility.blocker(for: CoverageFixtures.loan(status: .pending, stage: .pending, ownerAccepted: false), userID: "borrower", kitConfirmed: true, wearReviewed: true),
-            .awaitingOwner
-        )
-        XCTAssertEqual(PickupInspectionEligibility.blocker(for: loan, userID: "borrower", kitConfirmed: false, wearReviewed: true), .incompleteChecklist)
-        XCTAssertNil(PickupInspectionEligibility.blocker(for: loan, userID: "borrower", kitConfirmed: true, wearReviewed: true))
+        #expect(PickupInspectionEligibility.blocker(for: loan, userID: "someone-else", kitConfirmed: true, wearReviewed: true) == .wrongAccount)
+        #expect(PickupInspectionEligibility.blocker(for: loan, userID: nil, kitConfirmed: true, wearReviewed: true) == .wrongAccount)
+        #expect(PickupInspectionEligibility.blocker(for: nil, userID: "borrower", kitConfirmed: true, wearReviewed: true) == .missingReservation)
+        #expect(PickupInspectionEligibility.blocker(for: CoverageFixtures.loan(status: .pending, stage: .pending, ownerAccepted: false), userID: "borrower", kitConfirmed: true, wearReviewed: true) == .awaitingOwner)
+        #expect(PickupInspectionEligibility.blocker(for: loan, userID: "borrower", kitConfirmed: false, wearReviewed: true) == .incompleteChecklist)
+        #expect(PickupInspectionEligibility.blocker(for: loan, userID: "borrower", kitConfirmed: true, wearReviewed: true) == nil)
     }
 
-    func testOnlyTheOwnerCanOpenANonReturnCase() {
+    @Test func `Only the owner can open anon return case`() {
         let now = Date()
         let loan = CoverageFixtures.loan(returnAt: now.addingTimeInterval(-48 * 3600))
-        XCTAssertTrue(LoanRules.canOpenNonReturnCase(loan, userID: loan.ownerID, now: now))
-        XCTAssertFalse(LoanRules.canOpenNonReturnCase(loan, userID: loan.borrowerID, now: now))
-        XCTAssertFalse(LoanRules.canOpenNonReturnCase(loan, userID: loan.ownerID, now: loan.returnAt))
-        XCTAssertEqual(CommunityError.wrongRole.localizedDescription, "You can't borrow your own listing.")
-        XCTAssertEqual(CommunityError.blocked.localizedDescription, "Borrowing is temporarily blocked on this account.")
+        #expect(LoanRules.canOpenNonReturnCase(loan, userID: loan.ownerID, now: now))
+        #expect(!(LoanRules.canOpenNonReturnCase(loan, userID: loan.borrowerID, now: now)))
+        #expect(!(LoanRules.canOpenNonReturnCase(loan, userID: loan.ownerID, now: loan.returnAt)))
+        #expect(CommunityError.wrongRole.localizedDescription == "You can't borrow your own listing.")
+        #expect(CommunityError.blocked.localizedDescription == "Borrowing is temporarily blocked on this account.")
     }
 
-    func testOwnerAndBorrowerSeeDifferentLoanScreens() {
+    @Test func `Owner and borrower see different loan screens`() {
         let inspection = CoverageFixtures.loan(status: .active, stage: .returnInspection)
-        XCTAssertEqual(LoanScreenPresentation.screen(for: inspection, userID: inspection.borrowerID, baselineCount: 0), .returnPhotos)
-        XCTAssertEqual(LoanScreenPresentation.screen(for: inspection, userID: inspection.ownerID, baselineCount: 0), .active)
+        #expect(LoanScreenPresentation.screen(for: inspection, userID: inspection.borrowerID, baselineCount: 0) == .returnPhotos)
+        #expect(LoanScreenPresentation.screen(for: inspection, userID: inspection.ownerID, baselineCount: 0) == .active)
     }
 }

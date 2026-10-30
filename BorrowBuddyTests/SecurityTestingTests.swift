@@ -1,56 +1,55 @@
-import XCTest
+import CoreLocation
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class SecurityTestingTests: XCTestCase {
-    func testPhoneAndCodeRejectInjectedText() {
+struct SecurityTestingTests {
+    @Test func `Phone and code reject injected text`() {
         let phone = PhoneSignInViewModel()
         phone.format("'; DROP TABLE users; --")
-        XCTAssertFalse(phone.phoneNumber.contains("DROP"))
-        XCTAssertFalse(phone.phoneNumber.contains("'"))
-        XCTAssertFalse(phone.canContinue)
+        #expect(!(phone.phoneNumber.contains("DROP")))
+        #expect(!(phone.phoneNumber.contains("'")))
+        #expect(!(phone.canContinue))
 
         let verification = VerificationViewModel()
         verification.updateCode("<script>123456</script>")
-        XCTAssertEqual(verification.code, "123456")
-        XCTAssertFalse(verification.code.contains("<"))
+        #expect(verification.code == "123456")
+        #expect(!(verification.code.contains("<")))
     }
 
-    func testRestrictedLoanActionsStayWithTheRightAccount() {
+    @Test func `Restricted loan actions stay with the right account`() {
         let loan = CoverageFixtures.loan(returnAt: Date().addingTimeInterval(-48 * 3600))
-        XCTAssertFalse(LoanRules.canOpenNonReturnCase(loan, userID: "intruder", now: Date()))
-        XCTAssertFalse(DropOffRegionPolicy.shouldMonitor(loan, borrowerID: "intruder"))
-        XCTAssertTrue(DropOffRegionPolicy.shouldMonitor(loan, borrowerID: loan.borrowerID))
-        XCTAssertEqual(
-            PickupInspectionEligibility.blocker(
+        #expect(!(LoanRules.canOpenNonReturnCase(loan, userID: "intruder", now: Date())))
+        #expect(!(DropOffRegionPolicy.shouldMonitor(loan, borrowerID: "intruder")))
+        #expect(DropOffRegionPolicy.shouldMonitor(loan, borrowerID: loan.borrowerID))
+        #expect(PickupInspectionEligibility.blocker(
                 for: CoverageFixtures.loan(status: .pending, stage: .pickupInspection, ownerAccepted: true),
                 userID: "intruder",
                 kitConfirmed: true,
                 wearReviewed: true
-            ),
-            .wrongAccount
-        )
+            ) == .wrongAccount)
     }
 
-    func testUnsignedSessionAndUnverifiedBorrowersAreBlocked() async {
+    @Test func `Unsigned session and unverified borrowers are blocked`() async {
         let service = ScriptedAuthenticationService()
         try? service.signOut()
         do {
             try await service.prepareAccount()
-            XCTFail("A signed-out user should not prepare an account.")
+            Issue.record("A signed-out user should not prepare an account.")
         } catch {
-            XCTAssertEqual(error.localizedDescription, AuthenticationError.signInRequired.localizedDescription)
+            #expect(error.localizedDescription == AuthenticationError.signInRequired.localizedDescription)
         }
-        XCTAssertFalse(MembershipPolicy.canBorrowHighValueTool(identityVerified: false, addressConfirmed: false))
-        XCTAssertNil(FirestoreModels.photoData(""))
-        XCTAssertNil(FirestoreModels.photoData("not base64 !!!"))
+        #expect(!(MembershipPolicy.canBorrowHighValueTool(identityVerified: false, addressConfirmed: false)))
+        #expect(FirestoreModels.photoData("") == nil)
+        #expect(FirestoreModels.photoData("not base64 !!!") == nil)
     }
 
-    func testDropOffRegionIdentifierIsTheLoanIdentifier() {
+    @Test func `Drop off region identifier is the loan identifier`() {
         let loan = CoverageFixtures.loan(id: "loan-42")
         let region = DropOffRegionPolicy.region(for: loan)
-        XCTAssertEqual(region?.identifier, "loan-42")
-        XCTAssertEqual(region?.radius, 50)
-        XCTAssertFalse(region?.notifyOnExit ?? true)
+        #expect(region?.identifier == "loan-42")
+        #expect(region?.radius == 50)
+        #expect(!(region?.notifyOnExit ?? true))
     }
 }

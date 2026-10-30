@@ -1,68 +1,70 @@
 import UIKit
-import XCTest
+import Foundation
+import Testing
 @testable import BorrowBuddy
 
 @MainActor
-final class ErrorHandlingTestingTests: XCTestCase {
-    func testAuthenticationAndCommunityErrorsHaveMessages() {
+struct ErrorHandlingTestingTests {
+    @Test func `Authentication and community errors have messages`() {
         let authentication: [AuthenticationError] = [
             .invalidEmail, .weakPassword, .emptyFields, .invalidCode,
             .verificationNotStarted, .signInRequired, .biometricsUnavailable, .unknown
         ]
         for error in authentication {
-            XCTAssertFalse(error.localizedDescription.isEmpty)
+            #expect(!(error.localizedDescription.isEmpty))
         }
         let community: [CommunityError] = [
             .signInRequired, .profileMissing, .unavailable, .invalidInput("Choose a smaller, clearer image."),
             .wrongRole, .blocked, .expiredLocation, .invalidStep
         ]
         for error in community {
-            XCTAssertFalse(error.localizedDescription.isEmpty)
+            #expect(!(error.localizedDescription.isEmpty))
         }
-        XCTAssertFalse(ConditionComparisonError.unreadableImage.localizedDescription.isEmpty)
-        XCTAssertFalse(ConditionComparisonError.featurePrintUnavailable.localizedDescription.isEmpty)
-        XCTAssertEqual(BiometricError.cancelled.localizedDescription, "Face ID was cancelled.")
+        #expect(!(ConditionComparisonError.unreadableImage.localizedDescription.isEmpty))
+        #expect(!(ConditionComparisonError.featurePrintUnavailable.localizedDescription.isEmpty))
+        #expect(BiometricError.cancelled.localizedDescription == "Face ID was cancelled.")
     }
 
-    func testNetworkFailureWithoutACacheShowsTheError() async {
+    @Test func `Network failure without acache shows the error`() async {
         let repository = InMemoryBorrowingRepository()
         repository.error = URLError(.timedOut)
         let model = NearbyMapViewModel()
         await model.load(using: repository, cache: OfflineCacheStore(inMemory: true))
-        XCTAssertEqual(model.errorMessage, URLError(.timedOut).localizedDescription)
-        XCTAssertTrue(model.filteredTools.isEmpty)
-        XCTAssertNil(model.emptyState)
-        XCTAssertEqual(model.resultSummary, "UNABLE TO REFRESH AVAILABLE TOOLS")
+        #expect(model.errorMessage == URLError(.timedOut).localizedDescription)
+        #expect(model.filteredTools.isEmpty)
+        #expect(model.emptyState == nil)
+        #expect(model.resultSummary == "UNABLE TO REFRESH AVAILABLE TOOLS")
     }
 
-    func testEmptySearchAndRadiusStates() async {
+    @Test func `Empty search and radius states`() async {
         let repository = InMemoryBorrowingRepository()
         let model = NearbyMapViewModel()
         await model.load(using: repository)
-        XCTAssertEqual(model.emptyState, .noListings)
+        #expect(model.emptyState == .noListings)
 
         repository.tools = [CoverageFixtures.tool(id: "far", name: "Ladder", latitude: 10, longitude: 10)]
         await model.load(using: repository)
         model.searchText = "drill"
-        XCTAssertEqual(model.emptyState, .noSearchMatches)
+        #expect(model.emptyState == .noSearchMatches)
 
         model.searchText = ""
         model.origin = CoverageFixtures.tool().coordinate
         model.radiusKilometers = 1
-        XCTAssertEqual(model.emptyState, .outsideRadius)
+        #expect(model.emptyState == .outsideRadius)
     }
 
-    func testUnreadablePhotoAndWrongCodeStayOnScreen() async throws {
-        XCTAssertThrowsError(try PhotoEncoding.jpeg(UIImage())) { error in
-            XCTAssertEqual(error.localizedDescription, ConditionComparisonError.unreadableImage.localizedDescription)
+    @Test func `Unreadable photo and wrong code stay on screen`() async throws {
+        let error = #expect(throws: (any Error).self) {
+            try PhotoEncoding.jpeg(UIImage())
         }
+        #expect(error?.localizedDescription == ConditionComparisonError.unreadableImage.localizedDescription)
         let service = ScriptedAuthenticationService()
         let verification = VerificationViewModel()
         verification.updateCode("000000")
         let rejected = await verification.verify(phoneNumber: "+94713123411", verificationID: DevAuthFixtures.localVerificationID, using: service)
-        XCTAssertFalse(rejected)
-        XCTAssertEqual(verification.errorMessage, "Incorrect verification code.")
+        #expect(!(rejected))
+        #expect(verification.errorMessage == "Incorrect verification code.")
         verification.updateCode("")
-        XCTAssertNil(verification.errorMessage)
+        #expect(verification.errorMessage == nil)
     }
 }

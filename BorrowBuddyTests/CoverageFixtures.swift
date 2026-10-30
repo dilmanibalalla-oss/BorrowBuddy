@@ -1,7 +1,7 @@
 import CoreLocation
 import SwiftUI
 import UIKit
-import XCTest
+import Foundation
 @testable import BorrowBuddy
 
 enum CoverageFixtures {

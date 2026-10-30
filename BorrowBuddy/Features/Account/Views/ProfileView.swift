@@ -177,6 +177,7 @@ struct ProfileView: View {
                         HStack(spacing: 12) {
                             CatalogToolArtwork(tool: tool)
                                 .frame(width: 52, height: 52)
+                                .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(tool.name)
                                     .font(.system(size: 15, weight: .bold))
@@ -195,6 +196,7 @@ struct ProfileView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(tool.name), \(tool.dailyCredits) credits a day")
                 }
             }
         }

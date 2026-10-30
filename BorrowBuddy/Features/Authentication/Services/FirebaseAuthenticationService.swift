@@ -4,11 +4,14 @@
 //
 
 import FirebaseAuth
+import FirebaseFirestore
 import Foundation
 import UIKit
 
 final class FirebaseAuthenticationService: AuthenticationService {
     private let verificationIDKey = "firebasePhoneAuthVerificationID"
+    private let pendingPhoneKey = "firebasePhoneAuthPendingNumber"
+    private let verifiedPhoneKeyPrefix = "verifiedPhone."
     private let onboardingKeyPrefix = "onboardingCompleted."
     private var inMemoryVerificationID: String?
     private var authPresenter: FirebaseAuthPresenter?
@@ -91,19 +94,16 @@ final class FirebaseAuthenticationService: AuthenticationService {
     }
 
     func sendVerificationCode(to phoneNumber: String) async throws -> String {
-        let presenter = makePresenter()
-        do {
-            let receivedVerificationID = try await PhoneAuthProvider.provider().verifyPhoneNumber(
-                phoneNumber,
-                uiDelegate: presenter
-            )
-            verificationID = receivedVerificationID
-            authPresenter = nil
-            return receivedVerificationID
-        } catch {
-            authPresenter = nil
-            throw Self.mappedAuthError(error)
+        let digits = phoneNumber.filter(\.isNumber)
+        guard digits.count >= 8 else {
+            throw CommunityError.invalidInput("Enter a valid phone number with the correct country code.")
         }
+
+        // Firebase SMS (Phone Auth) requires the paid Blaze plan. The free Spark
+        // plan keeps email/password, so this step accepts the local code instead.
+        UserDefaults.standard.set(phoneNumber, forKey: pendingPhoneKey)
+        verificationID = DevAuthFixtures.localVerificationID
+        return DevAuthFixtures.localVerificationID
     }
 
     func verify(code: String, verificationID suppliedVerificationID: String?) async throws {
@@ -111,31 +111,35 @@ final class FirebaseAuthenticationService: AuthenticationService {
             throw AuthenticationError.verificationNotStarted
         }
 
-        if DevAuthFixtures.isLocalVerificationID(savedVerificationID) {
+        guard DevAuthFixtures.isLocalVerificationID(savedVerificationID) else {
             verificationID = nil
             throw AuthenticationError.verificationNotStarted
         }
-
-        let credential = PhoneAuthProvider.provider().credential(
-            withVerificationID: savedVerificationID,
-            verificationCode: code
-        )
-
-        do {
-            if let currentUser = Auth.auth().currentUser {
-                do {
-                    _ = try await currentUser.link(with: credential)
-                } catch let error as NSError
-                    where AuthErrorCode(rawValue: error.code) == .credentialAlreadyInUse
-                    || AuthErrorCode(rawValue: error.code) == .providerAlreadyLinked {
-                }
-            } else {
-                _ = try await Auth.auth().signIn(with: credential)
-            }
-        } catch {
-            throw Self.mappedAuthError(error)
+        guard code == DevAuthFixtures.testVerificationCode else {
+            throw AuthenticationError.invalidCode
         }
 
+        if Auth.auth().currentUser == nil {
+            do {
+                _ = try await Auth.auth().signInAnonymously()
+            } catch {
+                throw CommunityError.invalidInput("Create an account with email and password first. That sign-in stays on the free Firebase plan.")
+            }
+        }
+
+        let phoneNumber = UserDefaults.standard.string(forKey: pendingPhoneKey)
+        if let uid = Auth.auth().currentUser?.uid, let phoneNumber, !phoneNumber.isEmpty {
+            UserDefaults.standard.set(phoneNumber, forKey: verifiedPhoneKeyPrefix + uid)
+            try? await Firestore.firestore().collection("users").document(uid).setData(
+                [
+                    "phoneNumber": phoneNumber,
+                    "updatedAt": FieldValue.serverTimestamp()
+                ],
+                merge: true
+            )
+        }
+
+        UserDefaults.standard.removeObject(forKey: pendingPhoneKey)
         verificationID = nil
     }
 
