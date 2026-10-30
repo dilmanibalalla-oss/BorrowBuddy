@@ -93,6 +93,24 @@ final class CommunityViewModel: ObservableObject {
 
         do {
             account = try await dependencies.accountRepository.loadAccount()
+            if let edited = dependencies.editedAccount {
+                account = AccountSummary(
+                    displayName: edited.displayName,
+                    neighborhood: edited.neighborhood,
+                    phoneNumber: edited.phoneNumber.isEmpty ? account.phoneNumber : edited.phoneNumber,
+                    creditBalance: account.creditBalance,
+                    creditHeld: account.creditHeld,
+                    photoData: edited.photoData ?? account.photoData,
+                    latitude: account.latitude ?? edited.latitude,
+                    longitude: account.longitude ?? edited.longitude,
+                    streetAddress: account.streetAddress.isEmpty ? edited.streetAddress : account.streetAddress,
+                    unit: account.unit.isEmpty ? edited.unit : account.unit,
+                    postalCode: account.postalCode.isEmpty ? edited.postalCode : account.postalCode,
+                    identityVerified: account.identityVerified,
+                    addressConfirmed: account.addressConfirmed,
+                    isPro: account.isPro
+                )
+            }
             dependencies.offlineCache.saveAccount(account)
         } catch {
             if let cached = dependencies.offlineCache.loadAccount() {

@@ -13,6 +13,14 @@ struct HomeView: View {
         model.loans.first { $0.isOpen && $0.borrowerID == dependencies.authenticationService.currentUserID }
             ?? model.loans.first(where: \.isOpen)
     }
+    private var profileFirstName: String {
+        let saved = dependencies.editedAccount?.displayName ?? ""
+        let loaded = model.account.displayName
+        let name = saved.isEmpty ? loaded : saved
+        if name.isEmpty { return "Neighbor" }
+        return name.components(separatedBy: " ").first ?? name
+    }
+
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
         return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
@@ -56,7 +64,7 @@ struct HomeView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(greeting).font(.system(size: 13, weight: .semibold)).foregroundStyle(AppTheme.green)
-                    Text("Hey, \(model.account.displayName.isEmpty ? "Neighbor" : model.account.displayName.components(separatedBy: " ").first ?? model.account.displayName)")
+                    Text("Hey, \(profileFirstName)")
                         .font(AppTheme.rounded(25, weight: .heavy)).foregroundStyle(AppTheme.blue)
                     if let shedWeather {
                         Text(shedWeather.summary)

@@ -6,28 +6,44 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct EditProfileView: View {
+    var onSaved: (AccountSummary) -> Void
+    var onCancel: () -> Void
+
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var dependencies: AppDependencies
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = AccountSettingsViewModel()
-    @State private var displayName = ""
-    @State private var neighborhood = ""
-    @State private var phoneNumber = ""
+    @State private var displayName: String
+    @State private var neighborhood: String
+    @State private var phoneNumber: String
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var photoData: Data?
     @State private var photoError: String?
     @State private var changedPhoto = false
+    @State private var photoTask: Task<Void, Never>?
     @State private var isSaving = false
-    @State private var didLoadFields = false
+    @State private var stickyError: String?
+
+    init(startingAccount: AccountSummary?, onSaved: @escaping (AccountSummary) -> Void, onCancel: @escaping () -> Void) {
+        self.onSaved = onSaved
+        self.onCancel = onCancel
+        let seededNeighborhood = (startingAccount?.neighborhood.isEmpty == false)
+            ? startingAccount?.neighborhood ?? ""
+            : startingAccount?.streetAddress ?? ""
+        _displayName = State(initialValue: startingAccount?.displayName ?? "")
+        _neighborhood = State(initialValue: seededNeighborhood)
+        _phoneNumber = State(initialValue: startingAccount?.phoneNumber ?? "")
+        _photoData = State(initialValue: startingAccount?.photoData)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     AccountSettingsHeader(title: "Edit Profile", subtitle: "Your neighborhood identity") {
-                        dismiss()
+                        onCancel()
                     }
                     avatar
                     AccountField(
@@ -60,7 +76,12 @@ struct EditProfileView: View {
                         title: "Your account",
                         message: "Your phone number was confirmed when you joined and stays on your account. Your name and neighborhood are saved when you tap Save profile."
                     )
-                    AccountSaveStatus(error: photoError ?? viewModel.errorMessage, success: viewModel.successMessage)
+                    if let message = stickyError ?? photoError {
+                        Text(message)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(AppTheme.coral)
+                            .accessibilityLabel(message)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -68,7 +89,7 @@ struct EditProfileView: View {
 
             PrimaryButton(
                 title: isSaving ? "Saving..." : "Save profile",
-                enabled: !viewModel.isLoading && !isSaving && didLoadFields
+                enabled: !isSaving
             ) {
                 Task { await save() }
             }
@@ -78,19 +99,18 @@ struct EditProfileView: View {
         }
         .background(AppTheme.background)
         .navigationBarHidden(true)
-        .task {
-            await load()
-        }
         .onChange(of: selectedPhoto) { _, selection in
-            Task {
+            photoTask?.cancel()
+            photoTask = Task { @MainActor in
+                guard let selection else { return }
                 do {
-                    guard let data = try await selection?.loadTransferable(type: Data.self),
-                          let image = UIImage(data: data),
-                          let jpeg = image.jpegData(compressionQuality: 0.72) else { return }
-                    photoData = jpeg
+                    guard let picked = try await selection.loadTransferable(type: ProfilePhoto.self) else { return }
+                    guard !Task.isCancelled, let image = UIImage(data: picked.data) else { return }
+                    photoData = try PhotoEncoding.jpeg(image)
                     changedPhoto = true
                     photoError = nil
                 } catch {
+                    guard !Task.isCancelled else { return }
                     photoError = FriendlyError.clean(error.localizedDescription)
                 }
             }
@@ -109,13 +129,13 @@ struct EditProfileView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 92, height: 92)
-                                .clipShape(Circle())
                         } else {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 39))
                                 .foregroundStyle(AppTheme.blue)
                         }
                     }
+                    .clipShape(Circle())
             }
             Text("Change profile photo")
                 .font(.caption.bold())
@@ -128,51 +148,73 @@ struct EditProfileView: View {
         .padding(.vertical, 12)
     }
 
-    private func load() async {
-        await viewModel.loadProfile(using: dependencies.accountRepository)
-        if let account = viewModel.account {
-            displayName = account.displayName
-            neighborhood = account.neighborhood
-            phoneNumber = account.phoneNumber
-            photoData = account.photoData
-        }
-        didLoadFields = true
-    }
-
     private func save() async {
         guard !isSaving else { return }
         isSaving = true
         photoError = nil
+        stickyError = nil
         defer { isSaving = false }
 
+        await photoTask?.value
+
+        let savedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let savedNeighborhood = neighborhood.trimmingCharacters(in: .whitespacesAndNewlines)
         let saved = await viewModel.saveProfile(
-            displayName: displayName,
-            neighborhood: neighborhood,
+            displayName: savedName,
+            neighborhood: savedNeighborhood,
             phoneNumber: phoneNumber,
             using: dependencies.accountRepository
         )
-        guard saved else { return }
+        guard saved else {
+            stickyError = viewModel.errorMessage ?? "Your profile could not be saved."
+            return
+        }
 
-        var photoSaved = true
         if changedPhoto, let photoData {
             do {
                 try await dependencies.accountRepository.updateProfilePhoto(photoData)
             } catch {
                 photoError = FriendlyError.clean(error.localizedDescription)
-                photoSaved = false
+                onSaved(publishSavedProfile(name: savedName, neighborhood: savedNeighborhood))
+                return
             }
         }
 
-        let latest = try? await dependencies.accountRepository.loadAccount()
-        if var account = latest ?? viewModel.account {
-            if account.photoData == nil, let photoData {
-                account.photoData = photoData
-            }
-            dependencies.offlineCache.saveAccount(account)
-        }
-        guard photoSaved else { return }
+        let savedAccount = publishSavedProfile(name: savedName, neighborhood: savedNeighborhood)
+        onSaved(savedAccount)
+    }
 
-        try? await Task.sleep(nanoseconds: 350_000_000)
-        dismiss()
+    @discardableResult
+    private func publishSavedProfile(name: String, neighborhood: String) -> AccountSummary {
+        let latest = viewModel.account
+        let savedAccount = AccountSummary(
+            displayName: name,
+            neighborhood: neighborhood,
+            phoneNumber: latest?.phoneNumber.isEmpty == false ? latest!.phoneNumber : phoneNumber,
+            creditBalance: latest?.creditBalance ?? 0,
+            creditHeld: latest?.creditHeld ?? 0,
+            photoData: photoData ?? latest?.photoData,
+            latitude: latest?.latitude,
+            longitude: latest?.longitude,
+            streetAddress: latest?.streetAddress ?? "",
+            unit: latest?.unit ?? "",
+            postalCode: latest?.postalCode ?? "",
+            identityVerified: latest?.identityVerified ?? false,
+            addressConfirmed: latest?.addressConfirmed ?? false,
+            isPro: latest?.isPro ?? false
+        )
+        dependencies.offlineCache.saveAccount(savedAccount)
+        dependencies.editedAccount = savedAccount
+        return savedAccount
+    }
+}
+
+private struct ProfilePhoto: Transferable {
+    let data: Data
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(importedContentType: .image) { data in
+            ProfilePhoto(data: data)
+        }
     }
 }

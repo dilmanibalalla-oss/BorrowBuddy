@@ -13,9 +13,28 @@ struct ProfileView: View {
     @State private var path = NavigationPath()
     @State private var errorMessage: String?
     @State private var myListings: [BorrowingTool] = []
+    @State private var profileOverride: AccountSummary?
+    @State private var isEditingProfile = false
     @AppStorage(AppTheme.darkModeKey) private var darkMode = false
 
     var body: some View {
+        if isEditingProfile {
+            EditProfileView(
+                startingAccount: shownAccount,
+                onSaved: { saved in
+                    profileOverride = saved
+                    dependencies.editedAccount = saved
+                    viewModel.apply(saved, cache: dependencies.offlineCache)
+                    isEditingProfile = false
+                },
+                onCancel: { isEditingProfile = false }
+            )
+        } else {
+            profileScreen
+        }
+    }
+
+    private var profileScreen: some View {
         VStack(spacing: 0) {
         NavigationStack(path: $path) {
             ScrollView(showsIndicators: false) {
@@ -41,7 +60,18 @@ struct ProfileView: View {
             .navigationDestination(for: AccountDestination.self) { destination in
                 switch destination {
                 case .editProfile:
-                    EditProfileView()
+                    EditProfileView(
+                        startingAccount: shownAccount,
+                        onSaved: { saved in
+                            profileOverride = saved
+                            dependencies.editedAccount = saved
+                            viewModel.apply(saved, cache: dependencies.offlineCache)
+                            if path.count > 0 { path.removeLast() }
+                        },
+                        onCancel: {
+                            if path.count > 0 { path.removeLast() }
+                        }
+                    )
                 case .notifications:
                     NotificationPreferencesView()
                 case .paymentMethods:
@@ -59,6 +89,9 @@ struct ProfileView: View {
         }
         .task {
             await viewModel.load(using: dependencies.accountRepository, cache: dependencies.offlineCache)
+            if let saved = dependencies.editedAccount {
+                viewModel.apply(saved, cache: dependencies.offlineCache)
+            }
             await loadListings()
         }
         .onChange(of: path.count) { _, newCount in
@@ -66,9 +99,16 @@ struct ProfileView: View {
             if newCount == 0 {
                 Task {
                     await viewModel.load(using: dependencies.accountRepository, cache: dependencies.offlineCache)
+                    if let saved = dependencies.editedAccount {
+                        viewModel.apply(saved, cache: dependencies.offlineCache)
+                    }
                     await loadListings()
                 }
             }
+        }
+        .onChange(of: dependencies.editedAccount) { _, saved in
+            guard let saved else { return }
+            viewModel.apply(saved, cache: dependencies.offlineCache)
         }
         BorrowingTabBar(
             selectedTab: 3,
@@ -79,6 +119,27 @@ struct ProfileView: View {
         )
         }
         .background(AppTheme.background.ignoresSafeArea())
+    }
+
+    private var shownAccount: AccountSummary {
+        guard let saved = profileOverride ?? dependencies.editedAccount else { return viewModel.account }
+        let current = viewModel.account
+        return AccountSummary(
+            displayName: saved.displayName,
+            neighborhood: saved.neighborhood,
+            phoneNumber: saved.phoneNumber.isEmpty ? current.phoneNumber : saved.phoneNumber,
+            creditBalance: current.creditBalance == 0 ? saved.creditBalance : current.creditBalance,
+            creditHeld: current.creditHeld,
+            photoData: saved.photoData ?? current.photoData,
+            latitude: current.latitude ?? saved.latitude,
+            longitude: current.longitude ?? saved.longitude,
+            streetAddress: current.streetAddress.isEmpty ? saved.streetAddress : current.streetAddress,
+            unit: current.unit.isEmpty ? saved.unit : current.unit,
+            postalCode: current.postalCode.isEmpty ? saved.postalCode : current.postalCode,
+            identityVerified: current.identityVerified || saved.identityVerified,
+            addressConfirmed: current.addressConfirmed || saved.addressConfirmed,
+            isPro: current.isPro || saved.isPro
+        )
     }
 
     private var profileHeader: some View {
@@ -103,28 +164,28 @@ struct ProfileView: View {
                     .fill(AppTheme.yellow.opacity(0.45))
                     .frame(width: 64, height: 64)
                     .overlay {
-                        if let data = viewModel.account.photoData, let image = UIImage(data: data) {
+                        if let data = shownAccount.photoData, let image = UIImage(data: data) {
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 64, height: 64)
-                                .clipShape(Circle())
                         } else {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 28))
                                 .foregroundStyle(AppTheme.blue)
                         }
                     }
+                    .clipShape(Circle())
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(viewModel.account.displayName)
+                    Text(shownAccount.displayName)
                         .font(AppTheme.rounded(18, weight: .heavy))
                         .foregroundStyle(AppTheme.blue)
-                    if !viewModel.account.neighborhood.isEmpty {
-                        Label(viewModel.account.neighborhood, systemImage: "mappin.circle.fill")
+                    if !shownAccount.neighborhood.isEmpty {
+                        Label(shownAccount.neighborhood, systemImage: "mappin.circle.fill")
                             .font(.system(size: 12.5, weight: .semibold))
                             .foregroundStyle(AppTheme.green)
-                    } else if !viewModel.account.streetAddress.isEmpty {
-                        Label(viewModel.account.streetAddress, systemImage: "mappin.circle.fill")
+                    } else if !shownAccount.streetAddress.isEmpty {
+                        Label(shownAccount.streetAddress, systemImage: "mappin.circle.fill")
                             .font(.system(size: 12.5, weight: .semibold))
                             .foregroundStyle(AppTheme.green)
                     }
@@ -158,7 +219,6 @@ struct ProfileView: View {
                 .foregroundStyle(AppTheme.blue)
             if myListings.isEmpty {
                 VStack(spacing: 8) {
-                    ThemeClipart(name: "ClipartShare", height: 120, label: "Neighbors sharing tools")
                     Text("No shared tools yet")
                         .font(.system(size: 12.5))
                         .foregroundStyle(AppTheme.green)
@@ -221,7 +281,26 @@ struct ProfileView: View {
                 .foregroundStyle(AppTheme.blue)
 
             VStack(spacing: 0) {
-                menuRow("Edit Profile", icon: "person", destination: .editProfile)
+                Button {
+                    isEditingProfile = true
+                } label: {
+                    HStack(spacing: 13) {
+                        Image(systemName: "person")
+                            .foregroundStyle(AppTheme.blue)
+                            .frame(width: 20)
+                        Text("Edit Profile")
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.text)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(AppTheme.border)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 48)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit Profile")
                 Divider()
                 menuRow("Wallet", icon: "creditcard.fill", destination: .wallet)
                 Divider()
@@ -284,6 +363,8 @@ struct ProfileView: View {
     private var logoutButton: some View {
         Button {
             do {
+                profileOverride = nil
+                dependencies.editedAccount = nil
                 try dependencies.authenticationService.signOut()
                 router.go(to: .signUp)
             } catch {

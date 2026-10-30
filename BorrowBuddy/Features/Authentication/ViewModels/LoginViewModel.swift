@@ -11,6 +11,7 @@ final class LoginViewModel: ObservableObject {
     @Published var email = ""
     @Published var password = ""
     @Published private(set) var isLoading = false
+    @Published private(set) var isPresentingFaceID = false
     @Published private(set) var errorMessage: String?
 
     var canSubmit: Bool {
@@ -43,26 +44,39 @@ final class LoginViewModel: ObservableObject {
     func signInWithFaceID(using service: AuthenticationService) async -> Bool {
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            isPresentingFaceID = false
+        }
 
         guard let credentials = CredentialStore.load() else {
             errorMessage = "No saved Face ID credentials. Log in with email once after enabling Face ID."
             return false
         }
 
+        let reason = "Sign in to BorrowBuddy with \(BiometricAuthService.shared.biometryTypeName)"
+        isPresentingFaceID = true
+        #if targetEnvironment(simulator)
+        await BiometricAuthService.shared.showSimulatorPrompt(reason: reason)
+        #else
         do {
-            let success = try await BiometricAuthService.shared.authenticate(
-                reason: "Sign in to BorrowBuddy with \(BiometricAuthService.shared.biometryTypeName)"
-            )
+            let success = try await BiometricAuthService.shared.authenticate(reason: reason)
             guard success else {
                 errorMessage = "Face ID was cancelled."
                 return false
             }
+        } catch {
+            errorMessage = FriendlyError.clean(error.localizedDescription)
+            return false
+        }
+        #endif
+
+        do {
             try await service.signIn(email: credentials.email, password: credentials.password)
             email = credentials.email
             return true
         } catch {
-            errorMessage = FriendlyError.clean(error.localizedDescription)
+            errorMessage = mappedMessage(for: error)
             return false
         }
     }
