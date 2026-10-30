@@ -24,6 +24,9 @@ struct PhoneSignInView: View {
             .padding(.top, 8)
             .padding(.leading, -18)
 
+            signInArtwork(width: proxy.size.width)
+                .padding(.top, 8)
+
             Spacer()
 
             Text("Welcome, Neighbor!")
@@ -98,18 +101,14 @@ struct PhoneSignInView: View {
             }
             .padding(.top, 7)
 
-            Text("The free Firebase plan cannot send texts. Tap continue,\nthen enter code \(DevAuthFixtures.testVerificationCode).")
+            Text("No text is sent. Tap continue,\nthen enter code \(DevAuthFixtures.testVerificationCode).")
                 .font(AppTheme.system(12.5))
                 .foregroundStyle(AppTheme.secondaryText)
                 .lineSpacing(3)
                 .padding(.top, 17)
 
             if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .font(AppTheme.system(13))
-                    .foregroundStyle(AppTheme.coral)
-                    .padding(.top, 12)
-                    .accessibilityLabel(errorMessage)
+                DismissingErrorText(message: errorMessage, topPadding: 12)
             }
 
             Spacer()
@@ -154,6 +153,19 @@ struct PhoneSignInView: View {
                 focusTrigger += 1
             }
         }
+    }
+
+    private func signInArtwork(width: CGFloat) -> some View {
+        let wide = width >= 700
+        let artWidth = wide ? min(width - 48, 460) : min(max(width - 48, 160), 320)
+        let artHeight = wide ? 260.0 : 180.0
+        return Image("SignInArtwork")
+            .resizable()
+            .scaledToFit()
+            .frame(width: artWidth, height: artHeight)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel("Neighbor browsing shared tools")
+            .accessibilityAddTraits(.isImage)
     }
 }
 

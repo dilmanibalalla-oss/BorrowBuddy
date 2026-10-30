@@ -389,6 +389,8 @@ final class InMemoryAccountRepository: AccountRepository {
         )
     }
 
+    func syncBorrowingBlock(for loans: [ReservationRecord]) async {}
+
     func saveIdentityVerification(documentData: Data) async throws {
         if let error { throw error }
         identitySaved = !documentData.isEmpty

@@ -26,9 +26,7 @@ struct ProfileView: View {
                     accountMenu
                     logoutButton
                     if let message = errorMessage ?? viewModel.errorMessage {
-                        Text(message)
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(AppTheme.coral)
+                        DismissingErrorText(message: message, size: 12.5)
                     }
                 }
                 .padding(.horizontal, 22)
@@ -159,15 +157,18 @@ struct ProfileView: View {
                 .font(AppTheme.rounded(15, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
             if myListings.isEmpty {
-                Text("No shared tools yet")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(AppTheme.green)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .background(AppTheme.surface)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 15).stroke(AppTheme.border, lineWidth: 1)
-                    }
+                VStack(spacing: 8) {
+                    ThemeClipart(name: "ClipartShare", height: 120, label: "Neighbors sharing tools")
+                    Text("No shared tools yet")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(AppTheme.green)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(AppTheme.surface)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 15).stroke(AppTheme.border, lineWidth: 1)
+                }
             } else {
                 ForEach(myListings) { tool in
                     Button {
@@ -224,17 +225,9 @@ struct ProfileView: View {
                 Divider()
                 menuRow("Wallet", icon: "creditcard.fill", destination: .wallet)
                 Divider()
-                menuRow(
-                    viewModel.account.identityVerified ? "Identity verified" : "Identity Verification",
-                    icon: "person.text.rectangle",
-                    destination: .identityVerification
-                )
-                Divider()
                 menuRow("Notification Preferences", icon: "bell", destination: .notifications)
                 Divider()
                 darkModeRow
-                Divider()
-                menuRow("Payment Methods", icon: "creditcard", destination: .paymentMethods)
                 Divider()
                 menuRow("Loan Protection", icon: "checkmark.shield", destination: .loanProtection)
             }

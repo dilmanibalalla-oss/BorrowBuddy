@@ -30,9 +30,7 @@ struct WalletView: View {
                 balanceCard
                 ledger
                 if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(AppTheme.coral)
+                    DismissingErrorText(message: errorMessage, size: 12.5)
                 }
             }
             .padding(.horizontal, 20)
@@ -127,10 +125,13 @@ struct WalletView: View {
             }
             VStack(spacing: 0) {
                 if viewModel.ledger.isEmpty && !viewModel.isLoading {
-                    Text("No wallet activity yet")
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.secondaryText)
-                        .frame(maxWidth: .infinity, minHeight: 70)
+                    VStack(spacing: 8) {
+                        ThemeClipart(name: "ClipartCalendar", height: 140, label: "A neighbor heading out with a ladder")
+                        Text("No wallet activity yet")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.secondaryText)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 70)
                 } else {
                     ForEach(Array(viewModel.ledger.enumerated()), id: \.element.id) { index, entry in
                         walletRow(entry)

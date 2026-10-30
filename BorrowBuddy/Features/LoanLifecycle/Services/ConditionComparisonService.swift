@@ -15,7 +15,7 @@ enum ConditionComparisonError: LocalizedError {
         case .unreadableImage:
             "One of the evidence photos could not be read. Please retake it."
         case .featurePrintUnavailable:
-            "Vision could not create an image feature print. Please retake the pair."
+            "Those photos couldn't be compared. Please take them again."
         }
     }
 }

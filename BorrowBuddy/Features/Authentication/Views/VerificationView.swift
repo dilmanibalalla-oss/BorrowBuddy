@@ -24,14 +24,15 @@ struct VerificationView: View {
             .padding(.top, 8)
             .padding(.leading, -18)
 
-            Spacer()
+            ThemeClipart(name: "ClipartChat", height: 140, label: "Neighbors talking on a porch")
+                .padding(.top, 12)
 
             Text("Enter 6-Digit Code")
                 .font(AppTheme.rounded(28, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
                 .accessibilityAddTraits(.isHeader)
 
-            (Text("No text is sent on the free plan. Enter \(DevAuthFixtures.testVerificationCode) for ") + Text(dependencies.verificationPhoneNumber).bold())
+            (Text("Enter \(DevAuthFixtures.testVerificationCode) for ") + Text(dependencies.verificationPhoneNumber).bold())
                 .font(AppTheme.system(16))
                 .foregroundStyle(AppTheme.text)
                 .padding(.top, 8)
@@ -112,11 +113,7 @@ struct VerificationView: View {
             .accessibilityElement(children: .contain)
 
             if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .font(AppTheme.system(13))
-                    .foregroundStyle(AppTheme.coral)
-                    .padding(.top, 12)
-                    .accessibilityLabel(errorMessage)
+                DismissingErrorText(message: errorMessage, topPadding: 12)
             }
 
             if let statusMessage = viewModel.statusMessage {

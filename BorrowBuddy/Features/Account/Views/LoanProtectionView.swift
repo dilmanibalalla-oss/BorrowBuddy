@@ -20,11 +20,15 @@ struct LoanProtectionView: View {
 
                 hero
                 timelineCard
-                evidenceCard
+                ThemeClipart(
+                    name: "ClipartSafe",
+                    height: 180,
+                    label: "Neighbors shaking hands beside a toolbox"
+                )
                 AccountNotice(
                     icon: "person.2.badge.gearshape",
                     title: "Human review is required",
-                    message: "Photo similarity and location signals never automatically accuse a borrower or apply a charge. A fair review uses the complete evidence timeline."
+                    message: "Photos and location never automatically blame a borrower or add a charge. A person reviews the whole story first."
                 )
             }
             .padding(.horizontal, 18)
@@ -69,19 +73,6 @@ struct LoanProtectionView: View {
         }
     }
 
-    private var evidenceCard: some View {
-        AccountCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Protection technology")
-                    .font(AppTheme.rounded(15, weight: .heavy))
-                    .foregroundStyle(AppTheme.blue)
-                technology("map", "MapKit", "Pickup and return-area confirmation")
-                technology("calendar", "EventKit", "Private return reminders")
-                technology("viewfinder", "Apple Vision", "Eight pickup/return photo comparisons")
-            }
-        }
-    }
-
     private func step(_ number: String, _ title: String, _ detail: String) -> some View {
         HStack(alignment: .top, spacing: 11) {
             Text(number)
@@ -96,24 +87,6 @@ struct LoanProtectionView: View {
                     .foregroundStyle(AppTheme.text)
                 Text(detail)
                     .font(.system(size: 12.5))
-                    .foregroundStyle(AppTheme.green)
-            }
-        }
-    }
-
-    private func technology(_ icon: String, _ title: String, _ detail: String) -> some View {
-        HStack(spacing: 11) {
-            Image(systemName: icon)
-                .foregroundStyle(AppTheme.blue)
-                .frame(width: 34, height: 34)
-                .background(AppTheme.blue.opacity(0.09))
-                .clipShape(RoundedRectangle(cornerRadius: 9))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 13.5, weight: .bold))
-                    .foregroundStyle(AppTheme.blue)
-                Text(detail)
-                    .font(.system(size: 12))
                     .foregroundStyle(AppTheme.green)
             }
         }

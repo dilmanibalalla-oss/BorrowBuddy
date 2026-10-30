@@ -19,6 +19,7 @@ struct LoanListView: View {
                             .foregroundStyle(AppTheme.blue)
                     }
                     if model.loans.isEmpty && !model.isLoading {
+                        ThemeClipart(name: "ClipartShare", height: 160, label: "Neighbors sharing tools")
                         LoanCard {
                             Text(model.sectionErrors["Loan history"] == nil ? "No loans yet" : "Unable to load loans. Pull down to retry.")
                                 .font(.system(size: 13))

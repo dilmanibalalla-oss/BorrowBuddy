@@ -55,9 +55,7 @@ struct PickupMeetView: View {
                         background: AppTheme.yellow.opacity(0.14)
                     )
                     if let errorMessage = lifecycle.errorMessage {
-                        Text(errorMessage)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.coral)
+                        DismissingErrorText(message: errorMessage)
                     }
                     AccountSaveStatus(error: refreshError, success: nil)
                 }
@@ -158,7 +156,7 @@ struct PickupMeetView: View {
                     .foregroundStyle(AppTheme.green)
             }
             Spacer()
-            Text("• Participant")
+            Text("On this loan")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(AppTheme.green)
                 .padding(.horizontal, 9)
@@ -342,10 +340,7 @@ struct EvidenceCaptureView: View {
                 captureDetails
                 controls
                 if let errorMessage = lifecycle.errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 12))
-                        .foregroundStyle(AppTheme.coral)
-                        .padding(.top, 12)
+                    DismissingErrorText(message: errorMessage, topPadding: 12, size: 12)
                 }
                 Spacer()
             }
@@ -613,9 +608,7 @@ struct BaselineReviewView: View {
                         message: "Activation requires a successful cloud upload and a separate acknowledgement from each signed-in account."
                     )
                     if let errorMessage = lifecycle.errorMessage {
-                        Text(errorMessage)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.coral)
+                        DismissingErrorText(message: errorMessage)
                     }
                 }
                 .padding(.horizontal, 18)

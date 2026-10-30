@@ -222,7 +222,7 @@ enum LoanLifecycleViewModelError: LocalizedError {
         case .missingPhotoPairs:
             "Capture all 8 pickup and return photo pairs before comparison."
         case .analysisIncomplete:
-            "Vision comparison has not finished. Please wait and try again."
+            "The photo check has not finished. Please wait and try again."
         }
     }
 }

@@ -6,11 +6,14 @@
 import SwiftUI
 
 struct LoginView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var dependencies: AppDependencies
     @StateObject private var viewModel = LoginViewModel()
 
     var body: some View {
+        GeometryReader { proxy in
+        ScrollView {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Welcome back")
@@ -24,6 +27,9 @@ struct LoginView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(AppTheme.yellow)
+
+            loginArtwork
+                .padding(.top, 12)
 
             BackButton {
                 router.go(to: .signUp)
@@ -52,12 +58,7 @@ struct LoginView: View {
                 .padding(.top, 16)
 
                 if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.coral)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 14)
+                    DismissingErrorText(message: errorMessage, centered: true, topPadding: 14)
                 }
 
                 if viewModel.canUseFaceID {
@@ -107,7 +108,22 @@ struct LoginView: View {
 
             Spacer(minLength: 18)
         }
+        .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+    }
+
+    private var loginArtwork: some View {
+        let wide = horizontalSizeClass == .regular
+        return Image("LoginArtwork")
+            .resizable()
+            .scaledToFit()
+            .frame(width: wide ? 420 : 280, height: wide ? 250 : 170)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel("Neighbors confirming a tool request")
+            .accessibilityAddTraits(.isImage)
     }
 }

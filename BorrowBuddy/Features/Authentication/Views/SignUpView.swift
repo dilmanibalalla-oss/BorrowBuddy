@@ -30,6 +30,9 @@ struct SignUpView: View {
             GeometryReader { proxy in
             ScrollView {
                 VStack(spacing: 0) {
+                    signUpArtwork(width: proxy.size.width)
+                        .padding(.top, 12)
+
                     AuthTextField(
                         title: "Full Name",
                         placeholder: "Jordan Lee",
@@ -56,12 +59,7 @@ struct SignUpView: View {
                     .padding(.top, 16)
 
                     if let errorMessage = viewModel.errorMessage {
-                        Text(errorMessage)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.coral)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 14)
+                        DismissingErrorText(message: errorMessage, centered: true, topPadding: 14)
                     }
 
                     PrimaryButton(
@@ -116,12 +114,7 @@ struct SignUpView: View {
                     .accessibilityLabel("Sign up with Google")
 
                     if let googleError {
-                        Text(googleError)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.coral)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 12)
+                        DismissingErrorText(message: googleError, centered: true, topPadding: 12)
                     }
 
                     HStack(spacing: 4) {
@@ -148,6 +141,18 @@ struct SignUpView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+    }
+
+    private func signUpArtwork(width: CGFloat) -> some View {
+        let wide = width >= 700
+        let artWidth = wide ? min(width - 48, 460) : min(max(width - 48, 160), 320)
+        return Image("SignInArtwork")
+            .resizable()
+            .scaledToFit()
+            .frame(width: artWidth, height: wide ? 260 : 180)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel("Neighbor browsing shared tools")
+            .accessibilityAddTraits(.isImage)
     }
 
     private func signUpWithGoogle() async {

@@ -51,13 +51,7 @@ struct FaceIDSetupView: View {
                         .padding(.horizontal, 32)
 
                     if let errorMessage {
-                        Text(errorMessage)
-                            .font(AppTheme.system(13))
-                            .foregroundStyle(AppTheme.coral)
-                            .multilineTextAlignment(.center)
-                            .padding(.top, 16)
-                            .padding(.horizontal, 24)
-                            .accessibilityLabel(errorMessage)
+                        DismissingErrorText(message: errorMessage, centered: true, topPadding: 16, horizontalPadding: 24)
                     }
 
                     Spacer(minLength: 24)
@@ -74,7 +68,7 @@ struct FaceIDSetupView: View {
                     SecondaryButton(
                         title: "Maybe Later",
                         enabled: !isEnabling,
-                        accessibilityHint: "Continues without turning on Face ID."
+                        accessibilityHint: "Continues to your shed location without Face ID."
                     ) {
                         skipFaceID()
                     }
@@ -150,8 +144,7 @@ struct FaceIDSetupView: View {
         }
         CredentialStore.isFaceIDEnabled = true
         dependencies.pendingCredentials = nil
-        try? await dependencies.authenticationService.completeOnboarding()
-        router.go(to: .home)
+        router.go(to: .location)
     }
 
     private func skipFaceID() {

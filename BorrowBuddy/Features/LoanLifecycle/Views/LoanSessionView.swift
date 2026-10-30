@@ -36,6 +36,10 @@ struct LoanSessionView<Content: View>: View {
                         if previous?.lifecycleStage != loan.lifecycleStage || previous?.acknowledgements != loan.acknowledgements {
                             await lifecycle.restore(using: dependencies.loanLifecycleRepository)
                         }
+                        if dependencies.authenticationService.currentUserID == loan.borrowerID,
+                           NonReturnPolicy.shouldBlockBorrowing(loans: [loan], borrowerID: loan.borrowerID, now: Date()) {
+                            await dependencies.accountRepository.syncBorrowingBlock(for: [loan])
+                        }
                         let preferences = (try? await dependencies.accountRepository.loadNotificationSettings()) ?? .standard
                         await dependencies.notificationService.schedule(for: loan, preferences: preferences)
                         await dependencies.notificationService.watchLoanMessages([loan])
@@ -46,7 +50,12 @@ struct LoanSessionView<Content: View>: View {
             }
             .alert("Unable to refresh loan", isPresented: Binding(get: { loadError != nil }, set: { if !$0 { loadError = nil } })) {
                 Button("OK") { loadError = nil }
-            } message: { Text(loadError ?? "") }
+            } message: { Text(FriendlyError.clean(loadError ?? "")) }
+            .task(id: loadError) {
+                guard loadError != nil else { return }
+                try? await Task.sleep(for: .seconds(3))
+                loadError = nil
+            }
     }
 }
 

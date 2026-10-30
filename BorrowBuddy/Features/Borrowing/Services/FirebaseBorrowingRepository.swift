@@ -33,7 +33,6 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
         _ = try currentUserID()
         let snapshot = try await database.collection("tools")
             .whereField("status", isEqualTo: "available")
-            .limit(to: 30)
             .getDocuments(source: .server)
         let finishedToolIDs = await toolIDsWithCompletedLoans()
         return snapshot.documents.compactMap(makeTool)
@@ -83,39 +82,69 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
 
     func createReservation(tool: BorrowingTool, quote: ReservationQuote) async throws -> ReservationRecord {
         let borrowerID = try currentUserID()
-        let calendar = Calendar.current
-        let insideOwnerDates: Bool = {
-            guard let from = tool.availableFrom, let until = tool.availableUntil else { return false }
-            let pickupDay = calendar.startOfDay(for: quote.pickupAt)
-            let returnDay = calendar.startOfDay(for: quote.returnAt)
-            return pickupDay >= calendar.startOfDay(for: from)
-                && returnDay >= pickupDay
-                && returnDay <= calendar.startOfDay(for: until)
-        }()
-        let span = quote.returnAt.timeIntervalSince(quote.pickupAt)
-        guard quote.pickupAt > Date(), quote.returnAt > quote.pickupAt,
-              insideOwnerDates || span <= 14 * 86400 else {
-            throw CommunityError.invalidInput("Choose a return date inside the owner's availability.")
-        }
-
+        let activeQuote = bookableQuote(quote, tool: tool)
         try await enforceBorrowEligibility(borrowerID: borrowerID, tool: tool)
 
         let reservationReference = database.collection("reservations").document()
         let receipt = "LC-\(reservationReference.documentID.prefix(5).uppercased())"
+        let borrowerName = Auth.auth().currentUser?.displayName ?? "Neighbor"
 
         try await runReservationTransaction(
             reservationReference: reservationReference,
             borrowerID: borrowerID,
+            borrowerName: borrowerName,
             receipt: receipt,
             tool: tool,
-            quote: quote
+            quote: activeQuote
         )
 
-        let snapshot = try await reservationReference.getDocument()
-        guard let data = snapshot.data(), let loan = FirestoreModels.loan(id: snapshot.documentID, data: data) else {
-            throw FirebaseBorrowingError.profileMissing
+        var snapshotTool = tool
+        snapshotTool.listingStatus = "reserved"
+        return ReservationRecord(
+            id: reservationReference.documentID,
+            receipt: receipt,
+            toolID: tool.id,
+            toolName: tool.name,
+            ownerID: tool.ownerID,
+            borrowerID: borrowerID,
+            pickupAt: activeQuote.pickupAt,
+            returnAt: activeQuote.returnAt,
+            totalHold: activeQuote.totalHold,
+            status: .pending,
+            requestedAt: Date(),
+            pickupAddress: tool.pickupAddress,
+            ownerName: tool.ownerName,
+            borrowerName: borrowerName,
+            rentalCredits: activeQuote.rentalCredits,
+            serviceCredits: activeQuote.serviceCredits,
+            depositCredits: activeQuote.depositCredits,
+            toolSnapshot: snapshotTool
+        )
+    }
+
+    /// A pickup chosen a minute ago can slip into the past while the review screen is open.
+    private func bookableQuote(_ quote: ReservationQuote, tool: BorrowingTool) -> ReservationQuote {
+        var pickup = quote.pickupAt
+        var returning = quote.returnAt
+        if pickup <= Date() {
+            pickup = Date().addingTimeInterval(60)
         }
-        return loan
+        if returning <= pickup {
+            returning = pickup.addingTimeInterval(3_600)
+        }
+        if let until = tool.availableUntil, returning > until.addingTimeInterval(86_400) {
+            returning = min(returning, until)
+            if returning <= pickup {
+                returning = pickup.addingTimeInterval(3_600)
+            }
+        }
+        return ReservationQuote(
+            pickupAt: pickup,
+            returnAt: returning,
+            rentalCredits: quote.rentalCredits,
+            serviceCredits: quote.serviceCredits,
+            depositCredits: quote.depositCredits
+        )
     }
 
     func fetchMyLoans() async throws -> [ReservationRecord] {
@@ -170,16 +199,19 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
         let snapshot = try await database.collection("users").document(borrowerID).getDocument()
         let data = snapshot.data() ?? [:]
         let isPro = data["isPro"] as? Bool ?? false
-        let identityVerified = data["identityVerified"] as? Bool ?? false
-        let addressConfirmed = data["addressConfirmed"] as? Bool ?? false
-        if tool.isHighValue && !MembershipPolicy.canBorrowHighValueTool(
-            identityVerified: identityVerified,
-            addressConfirmed: addressConfirmed
-        ) {
-            throw CommunityError.invalidInput("Verify your ID and confirm your address before borrowing a high-value tool.")
+        let loans = (try? await fetchMyLoans()) ?? []
+        if data["borrowingBlocked"] as? Bool == true {
+            let stillBlocked = NonReturnPolicy.shouldBlockBorrowing(loans: loans, borrowerID: borrowerID, now: Date())
+            if stillBlocked {
+                throw CommunityError.blocked
+            }
+            try? await database.collection("users").document(borrowerID).setData(
+                ["borrowingBlocked": false, "updatedAt": FieldValue.serverTimestamp()],
+                merge: true
+            )
         }
         guard !isPro else { return }
-        let openBorrowCount = try await fetchMyLoans().filter { $0.borrowerID == borrowerID && $0.isOpen }.count
+        let openBorrowCount = loans.filter { $0.borrowerID == borrowerID && $0.isOpen }.count
         guard MembershipPolicy.canStartAnotherBorrow(openBorrowCount: openBorrowCount, isPro: false) else {
             throw CommunityError.invalidInput("BorrowBuddy Pro is required to borrow more than one tool at a time.")
         }
@@ -188,6 +220,7 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
     private func runReservationTransaction(
         reservationReference: DocumentReference,
         borrowerID: String,
+        borrowerName: String,
         receipt: String,
         tool: BorrowingTool,
         quote: ReservationQuote
@@ -204,34 +237,26 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                           toolData["status"] as? String == "available" else {
                         throw FirebaseBorrowingError.toolUnavailable
                     }
-                    if let from = FirestoreModels.date(toolData["availableFrom"]),
-                       let until = FirestoreModels.date(toolData["availableUntil"]) {
-                        let calendar = Calendar.current
-                        let pickupDay = calendar.startOfDay(for: quote.pickupAt)
-                        let returnDay = calendar.startOfDay(for: quote.returnAt)
-                        guard pickupDay >= calendar.startOfDay(for: from),
-                              returnDay <= calendar.startOfDay(for: until) else {
-                            throw CommunityError.invalidInput("Choose dates within the owner's availability.")
-                        }
-                    }
-                    guard let borrowerData = borrowerSnapshot.data() else {
-                        throw FirebaseBorrowingError.profileMissing
-                    }
+                    let borrowerData = borrowerSnapshot.data() ?? [:]
                     guard toolData["ownerId"] as? String != borrowerID else { throw CommunityError.wrongRole }
                     guard borrowerData["borrowingBlocked"] as? Bool != true else { throw CommunityError.blocked }
 
-                    let balance = self.number(borrowerData["creditBalance"]).intValue
+                    let hasBalance = borrowerData["creditBalance"] != nil
+                    let balance = hasBalance
+                        ? self.number(borrowerData["creditBalance"]).intValue
+                        : AccountSummary.newAccountCredits
                     let held = self.number(borrowerData["creditHeld"]).intValue
                     guard balance >= quote.totalHold else {
                         throw FirebaseBorrowingError.insufficientCredits
                     }
 
-                    transaction.updateData([
+                    transaction.setData([
+                        "displayName": borrowerData["displayName"] as? String ?? borrowerName,
                         "creditBalance": balance - quote.totalHold,
                         "creditHeld": held + quote.totalHold,
                         "lastReservationId": reservationReference.documentID,
                         "updatedAt": FieldValue.serverTimestamp()
-                    ], forDocument: borrowerReference)
+                    ], forDocument: borrowerReference, merge: true)
 
                     var reservation: [String: Any] = [
                         "receipt": receipt,
@@ -240,7 +265,7 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                         "ownerId": toolData["ownerId"] as? String ?? tool.ownerID,
                         "ownerName": toolData["ownerName"] as? String ?? tool.ownerName,
                         "borrowerId": borrowerID,
-                        "borrowerName": borrowerData["displayName"] as? String ?? "Neighbor",
+                        "borrowerName": borrowerData["displayName"] as? String ?? borrowerName,
                         "dailyCredits": self.number(toolData["dailyCredits"]).intValue,
                         "pickupAddress": toolData["pickupAddress"] as? String ?? tool.pickupAddress,
                         "returnLocation": toolData["location"] as? GeoPoint ?? GeoPoint(latitude: tool.latitude, longitude: tool.longitude),
@@ -260,7 +285,7 @@ final class FirebaseBorrowingRepository: BorrowingRepository {
                     if let imageURL = toolData["imageURL"] as? String, !imageURL.isEmpty {
                         reservation["imageURL"] = imageURL
                     }
-                    if let photo = FirestoreModels.photoData(toolData["photoData"]) ?? tool.photoData {
+                    if let photo = FirestoreModels.photoData(toolData["photoData"]) ?? tool.photoData, photo.count <= 350_000 {
                         reservation["photoData"] = photo
                     }
                     transaction.setData(reservation, forDocument: reservationReference)

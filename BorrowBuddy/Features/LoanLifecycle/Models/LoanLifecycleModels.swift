@@ -143,6 +143,53 @@ enum NonReturnPolicy {
         if overdue < escalationInterval { return .borrowingBlocked }
         return .escalationEligible
     }
+
+    static func applies(to loan: ReservationRecord, now: Date) -> Bool {
+        loan.status == .active
+            && loan.lifecycleStage != .awaitingReview
+            && loan.lifecycleStage != .completed
+            && loan.returnAt < now
+    }
+
+    struct StageNotice: Equatable {
+        let status: NonReturnStatus
+        let title: String
+        let message: String
+    }
+
+    static func notice(for loan: ReservationRecord, now: Date) -> StageNotice? {
+        guard applies(to: loan, now: now) else { return nil }
+        switch status(returnAt: loan.returnAt, now: now) {
+        case .overdueGracePeriod:
+            return StageNotice(
+                status: .overdueGracePeriod,
+                title: "Overdue grace period",
+                message: "Both neighbors are notified. You can message each other or agree an extension."
+            )
+        case .borrowingBlocked:
+            return StageNotice(
+                status: .borrowingBlocked,
+                title: "Borrowing paused",
+                message: "New borrowing is blocked while this loan stays unresolved."
+            )
+        case .escalationEligible:
+            return StageNotice(
+                status: .escalationEligible,
+                title: "Support escalation",
+                message: "This case is eligible for support escalation and human review."
+            )
+        default:
+            return nil
+        }
+    }
+
+    static func shouldBlockBorrowing(loans: [ReservationRecord], borrowerID: String, now: Date) -> Bool {
+        loans.contains { loan in
+            loan.borrowerID == borrowerID
+                && notice(for: loan, now: now)?.status != .overdueGracePeriod
+                && notice(for: loan, now: now) != nil
+        }
+    }
 }
 
 enum LoanRules {

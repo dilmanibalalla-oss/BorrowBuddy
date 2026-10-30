@@ -12,7 +12,7 @@ struct ToolReturnView: View {
    ScrollView {
     VStack(alignment: .leading, spacing: 16) {
      LoanHeader(title: "Return to \(flow.reservation?.ownerName ?? "owner")", subtitle: "Due \(flow.quote.returnAt.borrowingDateTime)") { router.go(to: .activeLoan) }
-     PickupMapCard(coordinate: flow.selectedTool.coordinate, label: "Drop-off boundary · 50 m", radiusVisible: true).frame(height: 280)
+     PickupMapCard(coordinate: flow.selectedTool.coordinate, label: "Drop-off area", radiusVisible: true).frame(height: 280)
      LoanCard {
       VStack(alignment: .leading, spacing: 10) {
        HStack {
@@ -24,12 +24,12 @@ struct ToolReturnView: View {
         ProgressView(value: min(1, max(0, 1 - distance / 500))).tint(AppTheme.blue)
         Text(distance <= 50 ? "You're near the drop-off. Confirm arrival below." : "Follow the map to the designated drop-off area.").font(.system(size: 12))
        } else { Text("Your current position is not available yet.").font(.system(size: 12)) }
-       if let accuracy = location.location?.horizontalAccuracy { Text("GPS accuracy: \(Int(accuracy)) meters").font(.caption) }
+       if let accuracy = location.location?.horizontalAccuracy { Text("Location is accurate to about \(Int(accuracy)) meters").font(.caption) }
        Button(location.isLoading ? "Checking location..." : "Refresh current location") { location.refresh() }.disabled(location.isLoading)
       }
      }
-     LoanNotice(icon: "location.circle", title: "Foreground arrival check",
-       message: "We check your distance on this device when you tap. Only the arrival time and GPS accuracy are saved, not your route. Location is a device signal, not proof of handoff.")
+     LoanNotice(icon: "location.circle", title: "Checking you're nearby",
+       message: "We only check how close you are when you tap. Your route is not saved, and being nearby is not the same as handing the tool back.")
      AccountSaveStatus(error: model.error ?? location.error, success: nil)
     }.padding(18)
    }
@@ -70,13 +70,13 @@ struct ArrivalConfirmedView: View {
      VStack(spacing: 16) {
       Image(systemName: "location.circle").font(.system(size: 62)).foregroundStyle(AppTheme.green)
       Text("You're in the return area").font(AppTheme.rounded(23, weight: .heavy)).foregroundStyle(AppTheme.blue)
-      Text("Arrival recorded \(flow.reservation?.arrivalAt?.formatted(.dateTime.hour().minute()) ?? "now"), with \(Int(flow.reservation?.arrivalAccuracy ?? 0)) m GPS accuracy, near the designated drop-off.").font(.system(size: 13)).multilineTextAlignment(.center)
+      Text("Arrival recorded \(flow.reservation?.arrivalAt?.formatted(.dateTime.hour().minute()) ?? "now"), near the drop-off.").font(.system(size: 13)).multilineTextAlignment(.center)
      }.padding(24).frame(maxWidth: .infinity).background(AppTheme.green.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 16))
      LoanCard {
       VStack(spacing: 12) {
        BorrowingInfoRow(label: "Area", value: flow.reservation?.pickupAddress ?? "")
        BorrowingInfoRow(label: "Arrival", value: flow.reservation?.arrivalAt?.borrowingDateTime ?? "Recorded")
-       BorrowingInfoRow(label: "GPS accuracy", value: "\(Int(flow.reservation?.arrivalAccuracy ?? 0)) meters")
+       BorrowingInfoRow(label: "How close", value: "About \(Int(flow.reservation?.arrivalAccuracy ?? 0)) meters")
        BorrowingInfoRow(label: "Location stored", value: "Arrival only")
       }
      }
@@ -104,7 +104,7 @@ struct CompareConditionView: View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 12) {
-                    LoanHeader(title: "Compare condition", subtitle: "8 photo pairs · zoom to inspect") {
+                    LoanHeader(title: "Compare condition", subtitle: "Zoom in to compare before and after") {
                         router.go(to: .returnCapture)
                     }
                     filterBar
@@ -114,14 +114,12 @@ struct CompareConditionView: View {
                     LoanNotice(
                         icon: "viewfinder.circle",
                         title: lifecycle.comparisonResults.isEmpty
-                            ? "Analyzing with Apple Vision..."
-                            : "Vision comparison ready",
-                        message: "Feature-print distance flags visually different pairs for human review. It never makes the final damage decision."
+                            ? "Checking the photos..."
+                            : "Photo check ready",
+                        message: "Photos that look different are flagged for the owner to review. The app never decides damage on its own."
                     )
                     if let errorMessage = lifecycle.errorMessage {
-                        Text(errorMessage)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.coral)
+                        DismissingErrorText(message: errorMessage)
                     }
                 }
                 .padding(.horizontal, 18)
@@ -129,7 +127,7 @@ struct CompareConditionView: View {
             }
 
             PrimaryButton(
-                title: lifecycle.isLoading ? "Submitting..." : "Submit comparison to owner",
+                title: lifecycle.isLoading ? "Sending..." : "Send photos to the owner",
                 systemImage: "paperplane",
                 enabled: !lifecycle.isLoading && lifecycle.returnPhotos.count == 8
             ) {
@@ -221,7 +219,7 @@ struct CompareConditionView: View {
                             .frame(width: 23, height: 23)
                             .background(AppTheme.coral)
                             .clipShape(Circle())
-                        Text("Vision distance \(result.distance.formatted(.number.precision(.fractionLength(2)))). This pair is visually different and needs owner review.")
+                        Text("These photos look different, so the owner should take a look.")
                             .font(.system(size: 12))
                             .foregroundStyle(AppTheme.text)
                     }

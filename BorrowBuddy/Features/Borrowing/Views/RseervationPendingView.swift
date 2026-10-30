@@ -52,7 +52,10 @@ struct ReservationPendingView: View {
                             LoanNotice(icon: "camera", title: "Shared baseline", message: "The borrower records eight angles. Each person acknowledges the same evidence using their own account.")
                         }
                         HStack {
-                            Button("Message neighbor") { router.go(to: .loanChat) }
+                            Button("Message neighbor") {
+                                router.chatReturnRoute = .reservationPending
+                                router.go(to: .loanChat)
+                            }
                             Spacer()
                             if loan.status == .pending { Button("Cancel", role: .destructive) { confirmCancel = true } }
                         }.font(.system(size: 12, weight: .semibold)).foregroundStyle(AppTheme.blue).disabled(model.isLoading)

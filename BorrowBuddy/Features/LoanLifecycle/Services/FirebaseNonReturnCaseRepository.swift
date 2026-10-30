@@ -17,12 +17,17 @@ final class FirebaseNonReturnCaseRepository: NonReturnCaseRepository {
         }
         let reference = database.collection("nonReturnCases").document(reservationID)
         if try await reference.getDocument().exists { return reference.documentID }
+        let reservation = try await database.collection("reservations").document(reservationID).getDocument()
+        let returnAt = FirestoreModels.date(reservation.data()?["returnAt"]) ?? Date()
+        let caseStatus = NonReturnPolicy.status(returnAt: returnAt, now: Date()) == .escalationEligible
+            ? NonReturnStatus.escalationEligible.rawValue
+            : "open"
         try await reference.setData([
             "reservationId": reservationID,
             "toolId": toolID,
             "ownerId": ownerID,
             "borrowerId": borrowerID,
-            "status": "open",
+            "status": caseStatus,
             "reason": reason,
             "openedAt": FieldValue.serverTimestamp(),
             "updatedAt": FieldValue.serverTimestamp()

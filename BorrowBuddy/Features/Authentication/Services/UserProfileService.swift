@@ -41,9 +41,17 @@ final class FirestoreUserProfileService: UserProfileService {
         let reference = db.collection("users").document(uid)
         let snapshot = try await reference.getDocument()
         var data: [String: Any] = [
-            "shedLocation": location.dictionary
+            "shedLocation": location.dictionary,
+            "address": [
+                "street": location.street,
+                "unit": location.unit,
+                "postalCode": location.postalCode
+            ],
+            "location": GeoPoint(latitude: location.latitude, longitude: location.longitude)
         ]
-        if let displayName = Auth.auth().currentUser?.displayName {
+        let savedName = (snapshot.data()?["displayName"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if savedName.isEmpty, let displayName = Auth.auth().currentUser?.displayName {
             data["displayName"] = displayName
         }
         if let email = Auth.auth().currentUser?.email {
