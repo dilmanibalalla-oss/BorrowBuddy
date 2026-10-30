@@ -42,11 +42,14 @@ enum AppRoute: Equatable {
     case loanRating
     case helpSupport
     case nonReturnCase
+    case messages
 }
 
 @MainActor
 final class AppRouter: ObservableObject {
     @Published var route: AppRoute = .splash
+    /// Where loan chat returns. Loan screens keep the pending reservation. The inbox returns to messages.
+    var chatReturnRoute: AppRoute = .reservationPending
 
     func go(to route: AppRoute) {
         self.route = route

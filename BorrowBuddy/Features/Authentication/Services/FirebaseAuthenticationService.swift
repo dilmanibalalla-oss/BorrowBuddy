@@ -69,6 +69,18 @@ final class FirebaseAuthenticationService: AuthenticationService {
         changeRequest.displayName = trimmedName
         try await changeRequest.commitChanges()
         setOnboardingCompleted(false, for: result.user.uid)
+        try? await Firestore.firestore().collection("users").document(result.user.uid).setData(
+            [
+                "displayName": trimmedName,
+                "email": trimmedEmail,
+                "creditBalance": AccountSummary.newAccountCredits,
+                "creditHeld": 0,
+                "starterCreditsGranted": true,
+                "createdAt": FieldValue.serverTimestamp(),
+                "updatedAt": FieldValue.serverTimestamp()
+            ],
+            merge: true
+        )
     }
 
     func signIn(email: String, password: String) async throws {
@@ -123,7 +135,7 @@ final class FirebaseAuthenticationService: AuthenticationService {
             do {
                 _ = try await Auth.auth().signInAnonymously()
             } catch {
-                throw CommunityError.invalidInput("Create an account with email and password first. That sign-in stays on the free Firebase plan.")
+                throw CommunityError.invalidInput("Create an account with email and password first.")
             }
         }
 
@@ -164,7 +176,7 @@ final class FirebaseAuthenticationService: AuthenticationService {
         case .tooManyRequests, .quotaExceeded:
             return CommunityError.invalidInput("Too many texts were sent. Wait a few minutes and try again.")
         case .missingClientIdentifier, .invalidAppCredential, .appNotAuthorized, .captchaCheckFailed:
-            return CommunityError.invalidInput("Phone verification needs an APNs key and the Phone sign-in method enabled in Firebase.")
+            return CommunityError.invalidInput("Phone verification isn't available right now. Try again in a moment.")
         case .webContextCancelled, .webContextAlreadyPresented:
             return CommunityError.invalidInput("Sign-in was cancelled. Try again.")
         default:

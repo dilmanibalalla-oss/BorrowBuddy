@@ -40,7 +40,7 @@ final class BiometricAuthService {
         }
         switch LAError.Code(rawValue: error.code) {
         case .biometryNotEnrolled:
-            return "\(biometryTypeName) isn't set up. On Simulator: Features → Face ID → Enrolled. On device: Settings → Face ID & Passcode."
+            return "\(biometryTypeName) isn't set up. Turn it on in Settings, then try again."
         case .biometryLockout:
             return "\(biometryTypeName) is locked. Unlock your device with your passcode, then try again."
         case .passcodeNotSet:
@@ -48,7 +48,7 @@ final class BiometricAuthService {
         case .biometryNotAvailable:
             return "\(biometryTypeName) hardware isn't available here."
         default:
-            return error.localizedDescription
+            return FriendlyError.clean(error.localizedDescription)
         }
     }
 

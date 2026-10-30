@@ -86,6 +86,8 @@ struct RootView: View {
                 LoanSessionView { HelpSupportView() }
             case .nonReturnCase:
                 LoanSessionView { NonReturnCaseView() }
+            case .messages:
+                MessagesInboxView()
             }
         }
         .animation(.easeInOut(duration: 0.25), value: router.route)

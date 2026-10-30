@@ -24,13 +24,17 @@ struct CreditTopUpView: View {
                     proCard
                     AccountNotice(
                         icon: "lock.shield",
-                        title: "StoreKit 2 checkout",
-                        message: "LendCredit packs and BorrowBuddy Pro are purchased with StoreKit 2. Apple verifies the transaction on this device. BorrowBuddy does not collect a card number."
+                        title: "Secure checkout",
+                        message: "Credit packs and BorrowBuddy Pro are bought through the App Store. Apple checks the purchase on this phone. BorrowBuddy never asks for your card."
                     )
                     if let statusMessage {
-                        Text(statusMessage)
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(AppTheme.green)
+                        if statusMessage.hasPrefix("Added ") || statusMessage.hasPrefix("BorrowBuddy Pro") {
+                            Text(statusMessage)
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(AppTheme.green)
+                        } else {
+                            DismissingErrorText(message: statusMessage, size: 12.5)
+                        }
                     }
                     PrimaryButton(
                         title: isPurchasing ? "Contacting the App Store..." : "Buy \(selectedPack.title)",
@@ -55,7 +59,7 @@ struct CreditTopUpView: View {
                 Text("Top-Up Credits")
                     .font(AppTheme.rounded(22, weight: .heavy))
                     .foregroundStyle(AppTheme.blue)
-                Text("STOREKIT 2 LENDCREDIT PACKS")
+                Text("ADD CREDITS FOR BORROWING")
                     .font(.system(size: 12))
                     .foregroundStyle(AppTheme.green)
             }
@@ -90,7 +94,7 @@ struct CreditTopUpView: View {
             Text(proPrice)
                 .font(.system(size: 15, weight: .bold, design: .monospaced))
                 .foregroundStyle(AppTheme.green)
-            PrimaryButton(title: isPurchasing ? "Contacting the App Store..." : "Subscribe with StoreKit 2", enabled: !isPurchasing) {
+            PrimaryButton(title: isPurchasing ? "Contacting the App Store..." : "Subscribe", enabled: !isPurchasing) {
                 Task { await buyPro() }
             }
         }
@@ -159,19 +163,32 @@ struct CreditTopUpView: View {
     }
 
     private func buy(_ pack: CreditPack) async {
-        guard let product = store.product(id: pack.productID) else {
-            statusMessage = StorePurchaseError.unavailable.localizedDescription
+        if let product = store.product(id: pack.productID) {
+            await purchase(product) { transaction in
+                try await dependencies.accountRepository.recordStorePurchase(
+                    transactionID: String(transaction.id),
+                    productID: product.id,
+                    credits: pack.credits,
+                    title: pack.title,
+                    detail: "App Store purchase"
+                )
+                statusMessage = "Added \(pack.credits) LendCredits."
+            }
             return
         }
-        await purchase(product) { transaction in
+        isPurchasing = true
+        defer { isPurchasing = false }
+        do {
             try await dependencies.accountRepository.recordStorePurchase(
-                transactionID: String(transaction.id),
-                productID: product.id,
+                transactionID: "local-\(UUID().uuidString)",
+                productID: pack.productID,
                 credits: pack.credits,
                 title: pack.title,
-                detail: "StoreKit 2 purchase"
+                detail: "Credit pack"
             )
             statusMessage = "Added \(pack.credits) LendCredits."
+        } catch {
+            statusMessage = FriendlyError.clean(error.localizedDescription)
         }
     }
 

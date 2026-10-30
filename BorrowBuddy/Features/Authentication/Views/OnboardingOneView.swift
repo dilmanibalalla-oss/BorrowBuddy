@@ -35,7 +35,11 @@ struct OnboardingOneView: View {
                 .padding(.top, 12)
                 .padding(.horizontal, 32)
 
-            Spacer()
+            ThemeClipart(name: "ClipartShare", height: 160, label: "Neighbors sharing a drill and a ladder")
+                .padding(.top, 20)
+                .padding(.horizontal, 24)
+
+            Spacer(minLength: 12)
 
             PrimaryButton(title: "Next") {
                 router.go(to: .onboardingTwo)

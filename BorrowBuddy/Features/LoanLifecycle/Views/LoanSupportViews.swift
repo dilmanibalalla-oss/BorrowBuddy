@@ -18,13 +18,14 @@ struct LoanChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             LoanHeader(title: neighborName, subtitle: loan?.toolName ?? "Loan note") {
-                router.go(to: .reservationPending)
+                router.go(to: router.chatReturnRoute)
             }
             .padding(.horizontal, 18)
             .padding(.top, 12)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     if notes.isEmpty {
+                        ThemeClipart(name: "ClipartChat", height: 150, label: "Neighbors talking on a porch")
                         Text("No notes yet. Send a short note about pickup or return.")
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.green)
@@ -130,7 +131,8 @@ struct LoanRatingView: View {
             PrimaryButton(title: isSaving ? "Saving..." : "Submit rating", enabled: !isSaving) {
                 Task { await submit() }
             }
-            Spacer()
+            ThemeClipart(name: "ClipartSafe", height: 160, label: "Neighbors shaking hands")
+            Spacer(minLength: 8)
         }
         .padding(18)
         .background(AppTheme.background)
@@ -164,10 +166,11 @@ struct HelpSupportView: View {
             LoanNotice(
                 icon: "lock",
                 title: "Report a private issue",
-                message: "If a tool comes back damaged or a neighbor misses the return, pause settlement from the review screen or open a non-return case from loan help."
+                message: "If a tool comes back damaged, or a neighbor misses the return, pause the loan from the review screen or ask for help from the loan screen."
             )
             LoanOutlineButton(title: "Back to my loans") { router.go(to: .loanList) }
-            Spacer()
+            ThemeClipart(name: "ClipartSafe", height: 180, label: "Neighbors shaking hands beside a toolbox")
+            Spacer(minLength: 8)
         }
         .padding(18)
         .background(AppTheme.background)
@@ -189,10 +192,10 @@ struct NonReturnCaseView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            LoanHeader(title: "Non-return case", subtitle: flow.reservation?.toolName ?? "Overdue loan") {
+            LoanHeader(title: "Ask for help", subtitle: flow.reservation?.toolName ?? "Overdue loan") {
                 router.go(to: .activeLoan)
             }
-            Text("Tell us what happened. Opening a case records the overdue loan for follow-up.")
+            Text("Tell us what happened. This saves the overdue loan so someone can follow up.")
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.text)
             TextField("What happened?", text: $reason, axis: .vertical)
@@ -201,10 +204,11 @@ struct NonReturnCaseView: View {
                 .background(AppTheme.surface)
                 .overlay { RoundedRectangle(cornerRadius: 11).stroke(AppTheme.border) }
             AccountSaveStatus(error: errorMessage, success: successMessage)
-            PrimaryButton(title: isSaving ? "Opening..." : "Open case", enabled: !isSaving && !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
+            PrimaryButton(title: isSaving ? "Sending..." : "Send request", enabled: !isSaving && !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
                 Task { await openCase() }
             }
-            Spacer()
+            ThemeClipart(name: "ClipartSafe", height: 150, label: "A safe neighborhood handoff")
+            Spacer(minLength: 8)
         }
         .padding(18)
         .background(AppTheme.background)
@@ -216,13 +220,13 @@ struct NonReturnCaseView: View {
         errorMessage = nil
         defer { isSaving = false }
         do {
-            let id = try await FirebaseNonReturnCaseRepository().openCase(
+            _ = try await FirebaseNonReturnCaseRepository().openCase(
                 reservationID: loan.id,
                 toolID: loan.toolID,
                 borrowerID: loan.borrowerID,
                 reason: reason.trimmingCharacters(in: .whitespacesAndNewlines)
             )
-            successMessage = "Case \(id) is open."
+            successMessage = "Your request was saved."
         } catch {
             errorMessage = error.localizedDescription
         }

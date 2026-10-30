@@ -15,6 +15,7 @@ struct CachedAccount: Codable, Equatable {
     var identityVerified: Bool
     var addressConfirmed: Bool
     var isPro: Bool
+    var photoData: Data?
 
     init(_ account: AccountSummary) {
         displayName = account.displayName
@@ -30,6 +31,7 @@ struct CachedAccount: Codable, Equatable {
         identityVerified = account.identityVerified
         addressConfirmed = account.addressConfirmed
         isPro = account.isPro
+        photoData = account.photoData
     }
 
     var account: AccountSummary {
@@ -39,6 +41,7 @@ struct CachedAccount: Codable, Equatable {
             phoneNumber: phoneNumber,
             creditBalance: creditBalance,
             creditHeld: creditHeld,
+            photoData: photoData,
             latitude: latitude,
             longitude: longitude,
             streetAddress: streetAddress,

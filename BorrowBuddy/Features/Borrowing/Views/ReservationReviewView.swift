@@ -39,7 +39,12 @@ struct ReservationReviewView: View {
                         }
                     }
 
-                    AccountSaveStatus(error: viewModel.errorMessage, success: nil)
+                    if let message = viewModel.errorMessage {
+                        Text(FriendlyError.clean(message))
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.coral)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 8)

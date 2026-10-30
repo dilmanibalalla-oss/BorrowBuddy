@@ -161,8 +161,8 @@ struct ActiveLoanView: View {
                             stat("\(lifecycle.pickupPhotos.count)", "Photos")
                             stat(loan.returnAt.formatted(.dateTime.weekday(.abbreviated).hour()), "Return")
                         }
-                        if loan.returnAt < Date(), loan.lifecycleStage != .awaitingReview {
-                            LoanNotice(icon: "clock", title: "Return overdue", message: "Contact the other neighbor or agree an extension.", color: AppTheme.coral, background: AppTheme.yellow.opacity(0.13))
+                        if let notice = NonReturnPolicy.notice(for: loan, now: Date()) {
+                            LoanNotice(icon: "clock", title: notice.title, message: notice.message, color: AppTheme.coral, background: AppTheme.yellow.opacity(0.13))
                         }
                         if !isBorrower {
                             LoanNotice(icon: "person.badge.clock", title: "Loan in progress", message: "The borrower records return evidence. You will review the paired photos before approval.")
@@ -206,8 +206,12 @@ struct ActiveLoanView: View {
             VStack(alignment: .leading, spacing: 5) {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
                     let hours = max(0, Int(loan.returnAt.timeIntervalSince(context.date) / 3600))
-                    Text(hours > 0 ? "\(hours / 24)d \(hours % 24)h left" : "Return due")
+                    let headline = NonReturnPolicy.notice(for: loan, now: context.date)?.title
+                        ?? (hours > 0 ? "\(hours / 24)d \(hours % 24)h left" : "Return due")
+                    Text(headline)
                         .font(AppTheme.rounded(30, weight: .heavy)).foregroundStyle(Color.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.6)
                 }
                 Text("Return \(loan.returnAt.borrowingDateTime)").font(.system(size: 12)).foregroundStyle(Color.white)
             }.padding(14)
@@ -458,7 +462,11 @@ struct LoanOptionsView: View {
             Form {
                 if let loan {
                     Section("Loan") {
-                        Button("Message \(isOwner ? loan.borrowerName : loan.ownerName)") { dismiss(); router.go(to: .loanChat) }
+                        Button("Message \(isOwner ? loan.borrowerName : loan.ownerName)") {
+                            dismiss()
+                            router.chatReturnRoute = .reservationPending
+                            router.go(to: .loanChat)
+                        }
                         Button("Return calendar reminder") { Task { _ = await model.perform { try await dependencies.eventReminderService.addReturnReminder(for: loan) } } }
                     }
                     if loan.lifecycleStage == .active {
@@ -476,7 +484,10 @@ struct LoanOptionsView: View {
                         }.disabled(model.isLoading)
                     }
                     if LoanRules.canOpenNonReturnCase(loan, userID: dependencies.authenticationService.currentUserID ?? "", now: Date()) {
-                        Button("Open a non-return case") { dismiss(); router.go(to: .nonReturnCase) }
+                        let title = NonReturnPolicy.notice(for: loan, now: Date())?.status == .escalationEligible
+                            ? "Escalate for human review"
+                            : "Open a non-return case"
+                        Button(title) { dismiss(); router.go(to: .nonReturnCase) }
                     }
                 }
                 Button("Help & Support") { dismiss(); router.go(to: .helpSupport) }

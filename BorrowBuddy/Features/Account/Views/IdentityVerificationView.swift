@@ -68,9 +68,13 @@ struct IdentityVerificationView: View {
                     .tint(AppTheme.blue)
                     .disabled(account.streetAddress.isEmpty)
                     if let message {
-                        Text(message)
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(isError ? AppTheme.coral : AppTheme.green)
+                        if isError {
+                            DismissingErrorText(message: message, size: 12.5)
+                        } else {
+                            Text(message)
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(AppTheme.green)
+                        }
                     }
                 }
                 .padding(.horizontal, 20)

@@ -57,8 +57,8 @@ struct EditProfileView: View {
                     .foregroundStyle(AppTheme.blue)
                     AccountNotice(
                         icon: "shield.checkered",
-                        title: "Verified account",
-                        message: "Your phone number comes from SMS sign-in and cannot be changed here. Name and neighborhood are saved to your account."
+                        title: "Your account",
+                        message: "Your phone number was confirmed when you joined and stays on your account. Your name and neighborhood are saved when you tap Save profile."
                     )
                     AccountSaveStatus(error: photoError ?? viewModel.errorMessage, success: viewModel.successMessage)
                 }
@@ -91,7 +91,7 @@ struct EditProfileView: View {
                     changedPhoto = true
                     photoError = nil
                 } catch {
-                    photoError = error.localizedDescription
+                    photoError = FriendlyError.clean(error.localizedDescription)
                 }
             }
         }
@@ -153,14 +153,24 @@ struct EditProfileView: View {
         )
         guard saved else { return }
 
+        var photoSaved = true
         if changedPhoto, let photoData {
             do {
                 try await dependencies.accountRepository.updateProfilePhoto(photoData)
             } catch {
-                photoError = error.localizedDescription
-                return
+                photoError = FriendlyError.clean(error.localizedDescription)
+                photoSaved = false
             }
         }
+
+        let latest = try? await dependencies.accountRepository.loadAccount()
+        if var account = latest ?? viewModel.account {
+            if account.photoData == nil, let photoData {
+                account.photoData = photoData
+            }
+            dependencies.offlineCache.saveAccount(account)
+        }
+        guard photoSaved else { return }
 
         try? await Task.sleep(nanoseconds: 350_000_000)
         dismiss()

@@ -20,6 +20,11 @@ final class LocationViewModel: NSObject, ObservableObject, CLLocationManagerDele
         !postalCode.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    func remember(_ coordinate: CLLocationCoordinate2D) {
+        guard self.coordinate == nil else { return }
+        self.coordinate = coordinate
+    }
+
     func useCurrentLocation() {
         locationStatus = "Finding your location..."
         manager.requestWhenInUseAuthorization()
@@ -29,7 +34,7 @@ final class LocationViewModel: NSObject, ObservableObject, CLLocationManagerDele
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         coordinate = location.coordinate
-        locationStatus = String(format: "Location found: %.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude)
+        locationStatus = "Location found"
         CLGeocoder().reverseGeocodeLocation(location) { [weak self] places, _ in
             guard let place = places?.first else { return }
             DispatchQueue.main.async {

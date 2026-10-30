@@ -28,6 +28,8 @@ final class AppDependencies: ObservableObject {
     @Published var verificationID: String?
     @Published var verificationPhoneNumber = ""
     @Published var isAuthenticated = false
+    /// Latest shed pin, so the tools map can move before the next account read returns.
+    @Published var savedShedCoordinate: CLLocationCoordinate2D?
 
     private var cancellables: Set<AnyCancellable> = []
 

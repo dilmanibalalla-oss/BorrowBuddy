@@ -14,9 +14,9 @@ enum StorePurchaseError: LocalizedError, Equatable {
         case .cancelled:
             return nil
         case .pending:
-            return "This purchase is pending approval. LendCredits are added after StoreKit confirms it."
+            return "This purchase is waiting for approval. Your credits are added once it's confirmed."
         case .unverified:
-            return "StoreKit could not verify this transaction on the device."
+            return "This purchase couldn't be verified. Try again."
         case .unavailable:
             return "This product is not available from the App Store yet."
         case .failed:
@@ -94,7 +94,7 @@ final class StorePurchaseService: ObservableObject {
             productID: transaction.productID,
             credits: credits,
             title: pack.title,
-            detail: "StoreKit 2 purchase"
+            detail: "App Store purchase"
         )
     }
 

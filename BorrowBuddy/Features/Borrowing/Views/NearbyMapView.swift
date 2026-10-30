@@ -2,6 +2,7 @@ import MapKit
 import SwiftUI
 
 struct NearbyMapView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var dependencies: AppDependencies
     @EnvironmentObject private var flow: BorrowingFlowStore
@@ -9,6 +10,7 @@ struct NearbyMapView: View {
     @StateObject private var account = AccountViewModel()
     @State private var visibleCamera: MapCamera?
     @State private var hasUserAdjustedCamera = false
+    @State private var hiddenMapError: String?
     @State private var position: MapCameraPosition = .region(
         MKCoordinateRegion(
             center: BorrowingTool.demo.coordinate,
@@ -67,68 +69,19 @@ struct NearbyMapView: View {
             .padding(.horizontal, 11)
             .padding(.top, 16)
 
-            ZStack(alignment: .top) {
-                Map(position: $position, interactionModes: .all) {
-                    ForEach(viewModel.filteredTools) { tool in
-                        Annotation(tool.name, coordinate: tool.coordinate) {
-                            Button { flow.select(tool); router.go(to: .toolDetails) } label: {
-                              Image(systemName: "mappin.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(Color.red)
-                                .background(Circle().fill(Color.white).frame(width: 12, height: 12))
-                            }
-                        }
+            GeometryReader { proxy in
+                let width = proxy.size.width
+                if isPadWidth(width) {
+                    HStack(spacing: 0) {
+                        toolList
+                            .frame(width: toolColumnWidth(width))
+                            .frame(maxHeight: .infinity)
+                        mapStage(showsPreviewCard: false)
+                            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
                     }
-                }
-                .mapStyle(.standard(pointsOfInterest: .excludingAll))
-                .onMapCameraChange(frequency: .continuous) { context in
-                    visibleCamera = context.camera
-                    if position.positionedByUser { hasUserAdjustedCamera = true }
-                }
-                .overlay(alignment: .trailing) {
-                    mapNavigationControls.padding(.trailing, 12)
-                }
-                .overlay(alignment: .bottom) {
-                    mapStatus
-                        .padding(12)
-                        .padding(.bottom, 24)
-                }
-
-                if let tool = viewModel.filteredTools.first {
-                    Button {
-                        flow.select(tool)
-                        router.go(to: .toolDetails)
-                    } label: {
-                        HStack(spacing: 11) {
-                            CatalogToolArtwork(tool: tool)
-                                .frame(width: 62, height: 62)
-                                .background(Color(red: 0.91, green: 0.90, blue: 0.86))
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .accessibilityHidden(true)
-
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(tool.name)
-                                    .font(AppTheme.rounded(15, weight: .bold))
-                                    .foregroundStyle(AppTheme.blue)
-                                Text("From \(tool.ownerName)")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(AppTheme.green)
-                            }
-
-                            Spacer()
-                            StatusPill(title: "Available", filled: true)
-                        }
-                        .padding(12)
-                        .frame(maxWidth: .infinity)
-                        .background(AppTheme.surface)
-                        .overlay {
-                            Rectangle().stroke(AppTheme.border, lineWidth: 1.5)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(tool.name), from \(tool.ownerName)")
-                    .padding(.horizontal, 5)
-                    .padding(.top, 11)
+                } else {
+                    mapStage(showsPreviewCard: true)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .padding(.top, 10)
@@ -150,10 +103,163 @@ struct NearbyMapView: View {
         }
         .onChange(of: viewModel.searchText) { _, _ in fitVisibleTools() }
         .onChange(of: viewModel.showsAllLocations) { _, _ in fitVisibleTools() }
-        .onChange(of: viewModel.radiusKilometers) { _, _ in
+        .onChange(of: viewModel.radiusKilometers) { oldRadius, newRadius in
+            guard oldRadius != newRadius else { return }
             viewModel.showsAllLocations = false
             fitVisibleTools()
         }
+        .onChange(of: dependencies.savedShedCoordinate?.latitude) { _, _ in
+            applySavedShed(recenter: true)
+        }
+    }
+
+    /// Portrait widths: iPad mini (A17 Pro) 744, iPad (A16) and 11-inch iPad Air 820, 13-inch iPad Air 1024.
+    private func isPadWidth(_ width: CGFloat) -> Bool {
+        horizontalSizeClass == .regular && width >= 700
+    }
+
+    private func toolColumnWidth(_ width: CGFloat) -> CGFloat {
+        min(400, max(260, floor(width * 0.34)))
+    }
+
+    private func mapStage(showsPreviewCard: Bool) -> some View {
+        ZStack(alignment: .top) {
+            Map(position: $position, interactionModes: .all) {
+                if let origin = viewModel.origin {
+                    Marker("Your shed", coordinate: origin)
+                        .tint(AppTheme.yellow)
+                }
+                ForEach(viewModel.filteredTools) { tool in
+                    Annotation(tool.name, coordinate: tool.coordinate) {
+                        Button { flow.select(tool); router.go(to: .toolDetails) } label: {
+                          Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(Color.red)
+                            .background(Circle().fill(Color.white).frame(width: 12, height: 12))
+                        }
+                    }
+                }
+            }
+            .mapStyle(.standard(pointsOfInterest: .excludingAll))
+            .onMapCameraChange(frequency: .continuous) { context in
+                visibleCamera = context.camera
+                if position.positionedByUser { hasUserAdjustedCamera = true }
+            }
+            .overlay(alignment: .trailing) {
+                mapNavigationControls.padding(.trailing, 12)
+            }
+            .overlay(alignment: .bottom) {
+                mapStatus
+                    .padding(12)
+                    .padding(.bottom, 24)
+            }
+
+            if showsPreviewCard, let tool = viewModel.filteredTools.first {
+                Button {
+                    flow.select(tool)
+                    router.go(to: .toolDetails)
+                } label: {
+                    HStack(spacing: 11) {
+                        CatalogToolArtwork(tool: tool)
+                            .frame(width: 62, height: 62)
+                            .background(Color(red: 0.91, green: 0.90, blue: 0.86))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(tool.name)
+                                .font(AppTheme.rounded(15, weight: .bold))
+                                .foregroundStyle(AppTheme.blue)
+                            Text("From \(tool.ownerName)")
+                                .font(.system(size: 13))
+                                .foregroundStyle(AppTheme.green)
+                        }
+
+                        Spacer()
+                        StatusPill(title: "Available", filled: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(AppTheme.surface)
+                    .overlay {
+                        Rectangle().stroke(AppTheme.border, lineWidth: 1.5)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(tool.name), from \(tool.ownerName)")
+                .padding(.horizontal, 5)
+                .padding(.top, 11)
+            }
+        }
+    }
+
+    private var toolList: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Tools")
+                .font(AppTheme.rounded(18, weight: .heavy))
+                .foregroundStyle(AppTheme.blue)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 10) {
+                    if viewModel.filteredTools.isEmpty && !viewModel.isLoading {
+                        Text("No tools match this search.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.green)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    ForEach(viewModel.filteredTools) { tool in
+                        Button {
+                            flow.select(tool)
+                            router.go(to: .toolDetails)
+                        } label: {
+                            HStack(spacing: 10) {
+                                CatalogToolArtwork(tool: tool)
+                                    .frame(width: 52, height: 52)
+                                    .background(Color(red: 0.91, green: 0.90, blue: 0.86))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(tool.name)
+                                        .font(AppTheme.rounded(15, weight: .bold))
+                                        .foregroundStyle(AppTheme.blue)
+                                        .lineLimit(1)
+                                    Text(toolListDetail(tool))
+                                        .font(.system(size: 12.5))
+                                        .foregroundStyle(AppTheme.green)
+                                        .lineLimit(2)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(AppTheme.surface)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 12).stroke(AppTheme.border, lineWidth: 1.5)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(tool.name). \(toolListDetail(tool))")
+                        .accessibilityHint("Opens this tool.")
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+            }
+        }
+        .padding(.top, 4)
+        .background(AppTheme.background)
+        .overlay(alignment: .trailing) {
+            Rectangle().fill(AppTheme.border).frame(width: 1)
+        }
+    }
+
+    private func toolListDetail(_ tool: BorrowingTool) -> String {
+        let owner = "From \(tool.ownerName)"
+        guard let meters = viewModel.distance(to: tool) else { return "\(owner) · \(tool.dailyCredits) LC/day" }
+        return String(format: "%@ · %.1f km · %d LC/day", owner, meters / 1000, tool.dailyCredits)
     }
 
     private var mapNavigationControls: some View {
@@ -201,9 +307,13 @@ struct NearbyMapView: View {
             ProgressView("Loading tools…")
                 .padding(14)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        } else if let error = viewModel.errorMessage {
-            statusCard("Unable to load tools", detail: error) {
+        } else if let error = viewModel.errorMessage, hiddenMapError != error {
+            statusCard("Unable to load tools", detail: FriendlyError.clean(error)) {
                 Button("Retry") { Task { await reloadMap() } }
+            }
+            .task(id: error) {
+                try? await Task.sleep(for: .seconds(3))
+                hiddenMapError = error
             }
         } else if let emptyState = viewModel.emptyState {
             switch emptyState {
@@ -241,27 +351,69 @@ struct NearbyMapView: View {
     }
 
     private func reloadMap() async {
+        applySavedShed(recenter: !hasUserAdjustedCamera)
         async let accountLoad: Void = account.load(using: dependencies.accountRepository, cache: dependencies.offlineCache)
         async let toolsLoad: Void = viewModel.load(using: dependencies.borrowingRepository, cache: dependencies.offlineCache)
         _ = await (accountLoad, toolsLoad)
         guard !Task.isCancelled else { return }
-        if let latitude = account.account.latitude, let longitude = account.account.longitude {
+        if dependencies.savedShedCoordinate == nil,
+           let latitude = account.account.latitude, let longitude = account.account.longitude {
+            let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+            if CLLocationCoordinate2DIsValid(coordinate) {
+                dependencies.savedShedCoordinate = coordinate
+            }
+        }
+        applySavedShed(recenter: !hasUserAdjustedCamera)
+    }
+
+    private func applySavedShed(recenter: Bool) {
+        if let saved = dependencies.savedShedCoordinate, CLLocationCoordinate2DIsValid(saved) {
+            viewModel.origin = saved
+        } else if let latitude = account.account.latitude, let longitude = account.account.longitude {
             let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
             viewModel.origin = CLLocationCoordinate2DIsValid(coordinate) ? coordinate : nil
-        } else { viewModel.origin = nil }
-        // Loading fresh listings must not undo a user's pinch, drag or button zoom.
-        if !hasUserAdjustedCamera { fitVisibleTools() }
+        } else {
+            viewModel.origin = nil
+        }
+        guard recenter else { return }
+        fitVisibleTools()
     }
 
     private func fitVisibleTools() {
         hasUserAdjustedCamera = false
-        if !viewModel.filteredTools.isEmpty {
-            // Fit actual annotation coordinates rather than keeping a stale saved-location camera.
-            position = .automatic
-        } else if let origin = viewModel.origin {
-            let delta = max(0.025, viewModel.radiusKilometers / 45)
-            position = .region(MKCoordinateRegion(center: origin,
-                span: MKCoordinateSpan(latitudeDelta: delta, longitudeDelta: delta)))
+        if !viewModel.showsAllLocations, let origin = viewModel.origin {
+            let delta = max(0.02, viewModel.radiusKilometers / 55)
+            withAnimation(.easeInOut(duration: 0.35)) {
+                position = .region(MKCoordinateRegion(
+                    center: origin,
+                    span: MKCoordinateSpan(latitudeDelta: delta, longitudeDelta: delta)
+                ))
+            }
+            return
         }
+        let tools = viewModel.filteredTools
+        guard !tools.isEmpty else {
+            if let origin = viewModel.origin {
+                let delta = max(0.025, viewModel.radiusKilometers / 45)
+                position = .region(MKCoordinateRegion(center: origin,
+                    span: MKCoordinateSpan(latitudeDelta: delta, longitudeDelta: delta)))
+            }
+            return
+        }
+        let latitudes = tools.map(\.latitude)
+        let longitudes = tools.map(\.longitude)
+        let minLatitude = latitudes.min() ?? 0
+        let maxLatitude = latitudes.max() ?? 0
+        let minLongitude = longitudes.min() ?? 0
+        let maxLongitude = longitudes.max() ?? 0
+        let center = CLLocationCoordinate2D(
+            latitude: (minLatitude + maxLatitude) / 2,
+            longitude: (minLongitude + maxLongitude) / 2
+        )
+        let span = MKCoordinateSpan(
+            latitudeDelta: max(0.05, (maxLatitude - minLatitude) * 1.6),
+            longitudeDelta: max(0.05, (maxLongitude - minLongitude) * 1.6)
+        )
+        position = .region(MKCoordinateRegion(center: center, span: span))
     }
 }

@@ -97,7 +97,7 @@ extension View {
     func accessibilityAnnounce(_ message: String?) -> some View {
         onChange(of: message) { _, newValue in
             guard UIAccessibility.isVoiceOverRunning, let newValue, !newValue.isEmpty else { return }
-            UIAccessibility.post(notification: .announcement, argument: newValue)
+            UIAccessibility.post(notification: .announcement, argument: FriendlyError.clean(newValue))
         }
     }
 

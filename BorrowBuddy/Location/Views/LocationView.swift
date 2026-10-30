@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 
 struct LocationView: View {
@@ -5,6 +6,7 @@ struct LocationView: View {
     @EnvironmentObject private var dependencies: AppDependencies
     @StateObject private var viewModel = LocationViewModel()
     @StateObject private var model = CommunityViewModel()
+    @State private var mapPosition: MapCameraPosition = .automatic
 
     var body: some View {
         ScrollView {
@@ -16,7 +18,7 @@ struct LocationView: View {
                 .font(AppTheme.rounded(27, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
 
-            Text("Set your location to find nearby shared tools. Use GPS or enter your address manually. Your profile address is private; each listing has its own pickup address.")
+            Text("Set your location to find nearby shared tools. Use your current location, or type your address. Your profile address is private; each listing has its own pickup address.")
                 .font(.system(size: 15.5))
                 .foregroundStyle(AppTheme.text)
                 .lineSpacing(4)
@@ -58,6 +60,9 @@ struct LocationView: View {
                     .padding(.top, 9)
             }
 
+            shedMap
+                .padding(.top, 16)
+
             HStack(spacing: 12) {
                 Rectangle().fill(AppTheme.border).frame(height: 1)
                 Text("OR")
@@ -90,13 +95,7 @@ struct LocationView: View {
 
             AccountSaveStatus(error: model.error, success: nil)
             PrimaryButton(title: model.isLoading ? "Saving..." : "Confirm Location", enabled: viewModel.canContinue && !model.isLoading) {
-                Task {
-                    if await model.perform({
-                        let coordinate = try await PlaceService.coordinate(for: "\(viewModel.streetAddress), \(viewModel.postalCode)")
-                        try await dependencies.communityRepository.saveAddress(street: viewModel.streetAddress, unit: viewModel.unit,
-                            postalCode: viewModel.postalCode, latitude: coordinate.latitude, longitude: coordinate.longitude)
-                    }) { router.go(to: .home) }
-                }
+                Task { await confirmLocation() }
             }
             .padding(.bottom, 18)
         }
@@ -112,8 +111,69 @@ struct LocationView: View {
                 viewModel.streetAddress = account.streetAddress
                 viewModel.unit = account.unit
                 viewModel.postalCode = account.postalCode
+                if let latitude = account.latitude, let longitude = account.longitude {
+                    viewModel.remember(CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
+                }
             } catch { model.error = error.localizedDescription }
         }
+        .onChange(of: viewModel.coordinate?.latitude) { _, _ in
+            if let coordinate = viewModel.coordinate { focusMap(on: coordinate) }
+        }
+        .onChange(of: viewModel.coordinate?.longitude) { _, _ in
+            if let coordinate = viewModel.coordinate { focusMap(on: coordinate) }
+        }
+    }
+
+    private var shedMap: some View {
+        Map(position: $mapPosition) {
+            if let coordinate = viewModel.coordinate {
+                Marker("Your shed", coordinate: coordinate)
+                    .tint(AppTheme.yellow)
+            }
+            UserAnnotation()
+        }
+        .frame(height: 220)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border, lineWidth: 1)
+        }
+        .accessibilityLabel("Map of your saved location")
+    }
+
+    private func focusMap(on coordinate: CLLocationCoordinate2D) {
+        withAnimation(.easeInOut(duration: 0.35)) {
+            mapPosition = .region(
+                MKCoordinateRegion(
+                    center: coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                )
+            )
+        }
+    }
+
+    private func confirmLocation() async {
+        let saved = await model.perform {
+            let coordinate: CLLocationCoordinate2D
+            if let found = viewModel.coordinate {
+                coordinate = found
+            } else {
+                coordinate = try await PlaceService.coordinate(
+                    for: "\(viewModel.streetAddress), \(viewModel.postalCode)"
+                )
+            }
+            try await dependencies.communityRepository.saveAddress(
+                street: viewModel.streetAddress,
+                unit: viewModel.unit,
+                postalCode: viewModel.postalCode,
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude
+            )
+            dependencies.savedShedCoordinate = coordinate
+            if let account = try? await dependencies.accountRepository.loadAccount() {
+                dependencies.offlineCache.saveAccount(account)
+            }
+        }
+        if saved { router.go(to: .nearbyMap) }
     }
 
     private func fieldLabel(_ title: String) -> some View {

@@ -13,7 +13,7 @@ import SwiftUI
 final class LocationManager: NSObject, ObservableObject {
     @Published var authorizationStatus: CLAuthorizationStatus
     @Published var coordinate: CLLocationCoordinate2D?
-    @Published var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
+    @Published var cameraPosition: MapCameraPosition = .automatic
     @Published var street = ""
     @Published var unit = ""
     @Published var postalCode = ""
@@ -71,7 +71,7 @@ final class LocationManager: NSObject, ObservableObject {
             startUpdating()
         case .denied, .restricted:
             isLocating = false
-            errorMessage = "Location is off. Enable it in Settings → BorrowBuddy → Location, or type your address. On Simulator: Features → Location → Custom Location."
+            errorMessage = "Location is off. Turn it on in Settings, or type your address."
         @unknown default:
             errorMessage = "Unable to access location right now."
         }
@@ -257,7 +257,7 @@ extension LocationManager: CLLocationManagerDelegate {
                 if isLocating { startUpdating() }
             case .denied, .restricted:
                 stopUpdating()
-                errorMessage = "Location is off. Enable it in Settings, or type your address. On Simulator: Features → Location → Custom Location."
+                errorMessage = "Location is off. Turn it on in Settings, or type your address."
             case .notDetermined:
                 break
             @unknown default:
@@ -284,7 +284,7 @@ extension LocationManager: CLLocationManagerDelegate {
             if nsError.domain == kCLErrorDomain, nsError.code == CLError.denied.rawValue {
                 errorMessage = "Location permission denied. Enable it in Settings, or type your address."
             } else {
-                errorMessage = "Couldn't get GPS. On Simulator use Features → Location → Apple / Custom Location, or type the address."
+                errorMessage = "Couldn't get your location. Type your address, or try again."
             }
         }
     }

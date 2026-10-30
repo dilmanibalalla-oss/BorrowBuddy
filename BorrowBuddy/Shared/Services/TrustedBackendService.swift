@@ -29,7 +29,7 @@ struct TrustedBackendService {
             throw error
         }
         #else
-        throw CommunityError.invalidInput("The secure backend SDK is not configured. No payment was made.")
+        throw CommunityError.invalidInput("This purchase isn't available right now. No payment was made.")
         #endif
     }
 }

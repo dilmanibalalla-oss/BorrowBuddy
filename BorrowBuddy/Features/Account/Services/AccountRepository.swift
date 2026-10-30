@@ -21,6 +21,7 @@ protocol AccountRepository: AnyObject {
     func activateProMembership(transactionID: String) async throws
     func setProMembership(active: Bool) async throws
     func saveIdentityVerification(documentData: Data) async throws
+    func syncBorrowingBlock(for loans: [ReservationRecord]) async
 }
 
 final class DemoAccountRepository: AccountRepository {
@@ -105,4 +106,6 @@ final class DemoAccountRepository: AccountRepository {
     func setProMembership(active: Bool) async throws {}
 
     func saveIdentityVerification(documentData: Data) async throws {}
+
+    func syncBorrowingBlock(for loans: [ReservationRecord]) async {}
 }

@@ -68,17 +68,32 @@ struct AccountField: View {
 struct AccountSaveStatus: View {
     let error: String?
     let success: String?
+    @State private var visibleError: String?
 
     var body: some View {
-        if let error {
-            Label(error, systemImage: "exclamationmark.triangle")
-                .font(.system(size: 12.5))
-                .foregroundStyle(AppTheme.coral)
-        } else if let success {
-            Label(success, systemImage: "checkmark.circle.fill")
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(AppTheme.green)
+        Group {
+            if let visibleError {
+                Label(visibleError, systemImage: "exclamationmark.triangle")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(AppTheme.coral)
+                    .accessibilityLabel(visibleError)
+            } else if let success {
+                Label(success, systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(AppTheme.green)
+            }
         }
+        .task(id: error) { await present(error) }
+    }
+
+    private func present(_ error: String?) async {
+        guard let error else {
+            visibleError = nil
+            return
+        }
+        visibleError = FriendlyError.clean(error)
+        try? await Task.sleep(for: .seconds(3))
+        visibleError = nil
     }
 }
 

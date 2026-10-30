@@ -17,6 +17,17 @@ struct LoanLifecycleTests {
         #expect(NonReturnPolicy.status(returnAt: now.addingTimeInterval(-3600), now: now) == .overdueGracePeriod)
         #expect(NonReturnPolicy.status(returnAt: now.addingTimeInterval(-48 * 3600), now: now) == .borrowingBlocked)
         #expect(NonReturnPolicy.status(returnAt: now.addingTimeInterval(-8 * 24 * 3600), now: now) == .escalationEligible)
+
+        let grace = sampleLoan(returnAt: now.addingTimeInterval(-3600))
+        let paused = sampleLoan(returnAt: now.addingTimeInterval(-48 * 3600))
+        let review = sampleLoan(returnAt: now.addingTimeInterval(-8 * 24 * 3600))
+        #expect(NonReturnPolicy.notice(for: grace, now: now)?.status == .overdueGracePeriod)
+        #expect(NonReturnPolicy.notice(for: paused, now: now)?.status == .borrowingBlocked)
+        #expect(NonReturnPolicy.notice(for: review, now: now)?.status == .escalationEligible)
+        #expect(!NonReturnPolicy.shouldBlockBorrowing(loans: [grace], borrowerID: "borrower", now: now))
+        #expect(NonReturnPolicy.shouldBlockBorrowing(loans: [paused], borrowerID: "borrower", now: now))
+        #expect(NonReturnPolicy.shouldBlockBorrowing(loans: [review], borrowerID: "borrower", now: now))
+        #expect(!NonReturnPolicy.shouldBlockBorrowing(loans: [paused], borrowerID: "someone-else", now: now))
     }
 
     @Test func `Drop off geofence is fifty meters`() {
@@ -58,7 +69,8 @@ struct LoanLifecycleTests {
 
     private func sampleLoan(
         stage: LoanLifecycleStage = .active,
-        status: ReservationStatus = .active
+        status: ReservationStatus = .active,
+        returnAt: Date = Date().addingTimeInterval(86_400)
     ) -> ReservationRecord {
         ReservationRecord(
             id: "loan-1",
@@ -68,7 +80,7 @@ struct LoanLifecycleTests {
             ownerID: BorrowingTool.demo.ownerID,
             borrowerID: "borrower",
             pickupAt: Date(),
-            returnAt: Date().addingTimeInterval(86_400),
+            returnAt: returnAt,
             totalHold: 30,
             status: status,
             requestedAt: Date(),

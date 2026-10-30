@@ -27,6 +27,11 @@ struct NotificationPreferencesView: View {
                         title: "Important loan alerts",
                         message: "Pickup, return, and safety notices may also appear inside the app."
                     )
+                    ThemeClipart(
+                        name: "ClipartCalendar",
+                        height: 150,
+                        label: "A neighbor heading out with a ladder"
+                    )
                     AccountSaveStatus(error: viewModel.errorMessage, success: viewModel.successMessage)
                 }
                 .padding(.horizontal, 20)
@@ -53,10 +58,10 @@ struct NotificationPreferencesView: View {
     }
 
     private func savePreferences(openSettingsIfNeeded: Bool) async {
+        viewModel.notifications.neighborhoodActivity = false
         let wantsAlerts = viewModel.notifications.reservationUpdates
             || viewModel.notifications.pickupReminders
             || viewModel.notifications.returnReminders
-            || viewModel.notifications.neighborhoodActivity
         if wantsAlerts {
             let allowed = await systemNotificationsAllowed(openSettingsIfNeeded: openSettingsIfNeeded)
             guard await viewModel.saveNotifications(using: dependencies.accountRepository) else { return }
@@ -111,14 +116,8 @@ struct NotificationPreferencesView: View {
                 Divider().padding(.vertical, 4)
                 preference(
                     "Return reminders",
-                    detail: "Due-time and return-area alerts",
+                    detail: "A nudge when a tool is due back",
                     value: $viewModel.notifications.returnReminders
-                )
-                Divider().padding(.vertical, 4)
-                preference(
-                    "Neighborhood activity",
-                    detail: "New nearby tools and community news",
-                    value: $viewModel.notifications.neighborhoodActivity
                 )
             }
         }

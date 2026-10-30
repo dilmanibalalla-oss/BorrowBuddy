@@ -52,11 +52,11 @@ final class SignUpViewModel: ObservableObject {
         case 17026: // weakPassword
             return AuthenticationError.weakPassword.localizedDescription
         case 17006: // operationNotAllowed
-            return "Email sign-in is turned off in Firebase. Enable Email/Password under Authentication. It stays on the free plan."
+            return "Email sign-in isn't available right now. Try again later."
         case 17020: // networkError
             return "Network error. Check your connection and try again."
         default:
-            return error.localizedDescription
+            return FriendlyError.clean(error.localizedDescription)
         }
     }
 }

@@ -12,8 +12,36 @@ final class FirebaseAccountRepository: AccountRepository {
 
     func loadAccount() async throws -> AccountSummary {
         let user = try currentUser()
-        let snapshot = try await database.collection("users").document(user.uid).getDocument()
-        let data = snapshot.data() ?? [:]
+        let reference = database.collection("users").document(user.uid)
+        let snapshot = try await reference.getDocument()
+        var data = snapshot.data() ?? [:]
+        let starterGranted = data["starterCreditsGranted"] as? Bool == true
+        let balanceMissing = data["creditBalance"] == nil
+        let held = number(data["creditHeld"]).intValue
+        let currentBalance = number(data["creditBalance"]).intValue
+        if !starterGranted && (balanceMissing || (currentBalance == 0 && held == 0)) {
+            let starting = AccountSummary.newAccountCredits
+            var starter: [String: Any] = [
+                "creditBalance": starting,
+                "creditHeld": data["creditHeld"] ?? 0,
+                "starterCreditsGranted": true,
+                "updatedAt": FieldValue.serverTimestamp()
+            ]
+            if !snapshot.exists {
+                starter["createdAt"] = FieldValue.serverTimestamp()
+                if let name = user.displayName { starter["displayName"] = name }
+                if let email = user.email { starter["email"] = email }
+            }
+            try? await reference.setData(starter, merge: true)
+            data["creditBalance"] = starting
+            data["starterCreditsGranted"] = true
+            if data["creditHeld"] == nil { data["creditHeld"] = 0 }
+        } else if !starterGranted {
+            try? await reference.setData(
+                ["starterCreditsGranted": true, "updatedAt": FieldValue.serverTimestamp()],
+                merge: true
+            )
+        }
         let shed = data["shedLocation"] as? [String: Any]
         let address = data["address"] as? [String: Any]
         let geo = data["location"] as? GeoPoint
@@ -29,9 +57,9 @@ final class FirebaseAccountRepository: AccountRepository {
                 ?? "",
             creditBalance: number(data["creditBalance"]).intValue,
             creditHeld: number(data["creditHeld"]).intValue,
-            photoData: decodePhoto(data["photoData"]),
-            latitude: geo?.latitude ?? (shed?["latitude"] as? NSNumber)?.doubleValue,
-            longitude: geo?.longitude ?? (shed?["longitude"] as? NSNumber)?.doubleValue,
+            photoData: FirestoreModels.photoData(data["photoData"]),
+            latitude: geo?.latitude ?? coordinateValue(shed?["latitude"]),
+            longitude: geo?.longitude ?? coordinateValue(shed?["longitude"]),
             streetAddress: stringValue(shed?["street"])
                 ?? stringValue(address?["street"])
                 ?? "",
@@ -194,13 +222,6 @@ final class FirebaseAccountRepository: AccountRepository {
         let resolvedPhone = trimmedPhone.isEmpty ? (user.phoneNumber ?? "") : trimmedPhone
 
         do {
-            // Keep Auth profile in sync so Home ("Hey, …") and Account stay consistent.
-            if user.displayName != trimmedName {
-                let request = user.createProfileChangeRequest()
-                request.displayName = trimmedName
-                try await request.commitChanges()
-            }
-
             var payload: [String: Any] = [
                 "displayName": trimmedName,
                 "neighborhood": trimmedNeighborhood,
@@ -223,6 +244,14 @@ final class FirebaseAccountRepository: AccountRepository {
             try await database.collection("users").document(user.uid).setData(payload, merge: true)
         } catch {
             throw mapFirestoreError(error)
+        }
+
+        // Firestore is the saved profile. Auth display name keeps Home and new listings in step.
+        if user.displayName != trimmedName {
+            let request = user.createProfileChangeRequest()
+            request.displayName = trimmedName
+            try? await request.commitChanges()
+            try? await user.reload()
         }
     }
 
@@ -309,10 +338,18 @@ final class FirebaseAccountRepository: AccountRepository {
             let existing = try transaction.getDocument(purchaseReference)
             guard !existing.exists else { return }
             let userSnapshot = try transaction.getDocument(userReference)
-            let balance = self.number(userSnapshot.data()?["creditBalance"]).intValue
+            let snapshotData = userSnapshot.data() ?? [:]
+            let rawBalance = snapshotData["creditBalance"]
+            let starterGranted = snapshotData["starterCreditsGranted"] as? Bool == true
+            let held = self.number(snapshotData["creditHeld"]).intValue
+            let numeric = self.number(rawBalance).intValue
+            let balance = (rawBalance == nil || (!starterGranted && numeric == 0 && held == 0))
+                ? AccountSummary.newAccountCredits
+                : numeric
             transaction.setData(
                 [
                     "creditBalance": balance + credits,
+                    "starterCreditsGranted": true,
                     "updatedAt": FieldValue.serverTimestamp()
                 ],
                 forDocument: userReference,
@@ -378,6 +415,18 @@ final class FirebaseAccountRepository: AccountRepository {
         } catch {
             throw mapFirestoreError(error)
         }
+    }
+
+    func syncBorrowingBlock(for loans: [ReservationRecord]) async {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        let blocked = NonReturnPolicy.shouldBlockBorrowing(loans: loans, borrowerID: uid, now: Date())
+        let reference = database.collection("users").document(uid)
+        let current = (try? await reference.getDocument().data()?["borrowingBlocked"] as? Bool) ?? false
+        guard current != blocked else { return }
+        try? await reference.setData([
+            "borrowingBlocked": blocked,
+            "updatedAt": FieldValue.serverTimestamp()
+        ], merge: true)
     }
 
     func saveIdentityVerification(documentData: Data) async throws {
@@ -499,6 +548,16 @@ final class FirebaseAccountRepository: AccountRepository {
         return user
     }
 
+    private func coordinateValue(_ value: Any?) -> Double? {
+        if let number = value as? NSNumber {
+            return number.doubleValue
+        }
+        if let double = value as? Double {
+            return double
+        }
+        return nil
+    }
+
     private func number(_ value: Any?) -> NSNumber {
         value as? NSNumber ?? 0
     }
@@ -511,25 +570,12 @@ final class FirebaseAccountRepository: AccountRepository {
         return nil
     }
 
-    private func decodePhoto(_ value: Any?) -> Data? {
-        if let data = value as? Data {
-            return data
-        }
-        if let data = value as? NSData {
-            return data as Data
-        }
-        if let base64 = value as? String, let data = Data(base64Encoded: base64) {
-            return data
-        }
-        return nil
-    }
-
     private func mapFirestoreError(_ error: Error) -> Error {
         let nsError = error as NSError
         if nsError.domain == FirestoreErrorDomain,
            nsError.code == FirestoreErrorCode.permissionDenied.rawValue {
             return CommunityError.invalidInput(
-                "Firestore blocked this save. In Firebase Console → Firestore → Rules, allow signed-in users to read and write their own users/{uid} document, walletTransactions, and scheduleEvents."
+                "That couldn't be saved. Try again in a moment."
             )
         }
         return error

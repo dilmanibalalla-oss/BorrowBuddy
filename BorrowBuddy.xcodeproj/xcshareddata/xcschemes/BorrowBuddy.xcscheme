@@ -63,7 +63,7 @@
          </BuildableReference>
       </BuildableProductRunnable>
       <StoreKitConfigurationFileReference
-         identifier = "../../BorrowBuddy/Store/BorrowBuddy.storekit">
+         identifier = "../BorrowBuddy/Store/BorrowBuddy.storekit">
       </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction

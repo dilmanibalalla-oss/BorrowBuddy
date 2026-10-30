@@ -62,7 +62,7 @@ final class LoginViewModel: ObservableObject {
             email = credentials.email
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = FriendlyError.clean(error.localizedDescription)
             return false
         }
     }
@@ -80,11 +80,11 @@ final class LoginViewModel: ObservableObject {
         case 17008:
             return AuthenticationError.invalidEmail.localizedDescription
         case 17006:
-            return "Email sign-in is turned off in Firebase. Enable Email/Password under Authentication. It stays on the free plan."
+            return "Email sign-in isn't available right now. Try again later."
         case 17020:
             return "Network error. Check your connection and try again."
         default:
-            return error.localizedDescription
+            return FriendlyError.clean(error.localizedDescription)
         }
     }
 }

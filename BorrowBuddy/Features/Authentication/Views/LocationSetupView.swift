@@ -34,7 +34,7 @@ struct LocationSetupView: View {
                         .padding(.top, 24)
                         .accessibilityAddTraits(.isHeader)
 
-                    Text("Set your tool shed's location so neighbors can discover your shared tools. Auto-detect with GPS or type your address manually below.")
+                    Text("Set your tool shed's location so neighbors can discover your shared tools. Use your current location, or type your address below.")
                         .font(AppTheme.system(16))
                         .foregroundStyle(AppTheme.blue.opacity(0.85))
                         .lineSpacing(3)
@@ -50,6 +50,9 @@ struct LocationSetupView: View {
                         locationManager.requestPermissionAndLocate()
                     }
                     .padding(.top, 28)
+
+                    shedMap
+                        .padding(.top, 16)
 
                     HStack(spacing: 12) {
                         Rectangle()
@@ -97,11 +100,7 @@ struct LocationSetupView: View {
                     }
 
                     if let message = errorMessage ?? locationManager.errorMessage {
-                        Text(message)
-                            .font(AppTheme.system(13))
-                            .foregroundStyle(AppTheme.coral)
-                            .padding(.top, 14)
-                            .accessibilityLabel(message)
+                        DismissingErrorText(message: message, topPadding: 14)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -112,7 +111,7 @@ struct LocationSetupView: View {
             PrimaryButton(
                 title: confirmTitle,
                 enabled: canAttemptConfirm,
-                accessibilityHint: "Saves this address and opens the home screen."
+                accessibilityHint: "Saves this address and opens the map."
             ) {
                 Task { await confirmLocation() }
             }
@@ -122,9 +121,30 @@ struct LocationSetupView: View {
         }
         .background(AppTheme.background)
         .accessibilityAnnounce(errorMessage ?? locationManager.errorMessage)
+        .onAppear {
+            if locationManager.coordinate == nil {
+                locationManager.requestPermissionAndLocate()
+            }
+        }
         .sheet(isPresented: $showMap) {
             LocationMapSheet(locationManager: locationManager)
         }
+    }
+
+    private var shedMap: some View {
+        Map(position: $locationManager.cameraPosition) {
+            if let coordinate = locationManager.coordinate {
+                Marker("Your shed", coordinate: coordinate)
+                    .tint(AppTheme.yellow)
+            }
+            UserAnnotation()
+        }
+        .frame(height: 220)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border, lineWidth: 1)
+        }
+        .accessibilityLabel("Map of your location")
     }
 
     private var confirmTitle: String {
@@ -149,13 +169,14 @@ struct LocationSetupView: View {
         }
 
         do {
-            // Finish onboarding locally and go home right away — don't wait on Firestore.
-            try await dependencies.authenticationService.completeOnboarding()
-            router.go(to: .home)
-
-            Task {
-                try? await dependencies.userProfileService.saveShedLocation(shed)
+            try await dependencies.userProfileService.saveShedLocation(shed)
+            let pin = CLLocationCoordinate2D(latitude: shed.latitude, longitude: shed.longitude)
+            dependencies.savedShedCoordinate = pin
+            if let saved = try? await dependencies.accountRepository.loadAccount() {
+                dependencies.offlineCache.saveAccount(saved)
             }
+            try await dependencies.authenticationService.completeOnboarding()
+            router.go(to: .nearbyMap)
         } catch {
             errorMessage = error.localizedDescription
             isSaving = false
@@ -208,10 +229,7 @@ private struct LocationMapSheet: View {
                     }
 
                     if let errorMessage = locationManager.errorMessage {
-                        Text(errorMessage)
-                            .font(AppTheme.system(13))
-                            .foregroundStyle(AppTheme.coral)
-                            .accessibilityLabel(errorMessage)
+                        DismissingErrorText(message: errorMessage)
                     }
 
                     Text("Tap the map to move the pin.")
@@ -252,7 +270,26 @@ private struct LocationMapSheet: View {
         .onAppear {
             if locationManager.coordinate == nil {
                 locationManager.requestPermissionAndLocate()
+            } else {
+                focusOnPin()
             }
+        }
+        .onChange(of: locationManager.coordinate?.latitude) { _, _ in
+            focusOnPin()
+        }
+        .onChange(of: locationManager.coordinate?.longitude) { _, _ in
+            focusOnPin()
+        }
+    }
+
+    private func focusOnPin() {
+        guard let coordinate = locationManager.coordinate else { return }
+        let region = MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        )
+        withAnimation(.easeInOut(duration: 0.35)) {
+            locationManager.cameraPosition = .region(region)
         }
     }
 }

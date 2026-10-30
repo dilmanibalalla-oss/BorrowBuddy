@@ -12,17 +12,7 @@ struct OnboardingTwoView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(AppTheme.blue.opacity(0.08))
-                    .frame(width: 160, height: 160)
-
-                Image("CatalogToolArtwork")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 120)
-                    .accessibilityHidden(true)
-            }
+            ThemeClipart(name: "ClipartSafe", height: 200, label: "Neighbors shaking hands beside a toolbox")
 
             Text("Stay Safe & Covered.")
                 .font(AppTheme.rounded(28, weight: .heavy))

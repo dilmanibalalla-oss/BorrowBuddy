@@ -13,38 +13,55 @@ extension Notification.Name {
 final class LoanNotificationService {
     func schedule(for loan: ReservationRecord, preferences: NotificationSettings) async {
         let center = UNUserNotificationCenter.current()
-        let ids = ["pickup", "return-day", "return-hour", "due", "overdue", "grace-ended"].map { "loan-\(loan.id)-\($0)" }
+        let ids = ["pickup", "return-day", "return-hour", "due", "overdue", "grace-ended", "escalation", "owner-grace", "owner-paused", "owner-escalation"].map { "loan-\(loan.id)-\($0)" }
         center.removePendingNotificationRequests(withIdentifiers: ids)
         guard loan.isOpen else { return }
         await ensureAuthorization()
         let settings = await center.notificationSettings()
         let canNotify = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional || settings.authorizationStatus == .ephemeral
         #if canImport(FirebaseAuth)
-        let isBorrower = Auth.auth().currentUser?.uid == loan.borrowerID
+        let currentUserID = Auth.auth().currentUser?.uid
+        let isBorrower = currentUserID == loan.borrowerID
+        let isOwner = currentUserID == loan.ownerID
         #else
         let isBorrower = true
+        let isOwner = false
         #endif
+        let tracksReturn = loan.status == .active && loan.lifecycleStage != .awaitingReview && preferences.returnReminders
         var upcoming: [(id: String, title: String, body: String, at: Date)] = []
         if loan.status == .pending && preferences.pickupReminders {
             upcoming.append((ids[0], "Pickup reminder", loan.toolName, loan.pickupAt.addingTimeInterval(-3600)))
         }
-        if isBorrower && loan.status == .active && loan.lifecycleStage != .awaitingReview && preferences.returnReminders {
+        if isBorrower && tracksReturn {
             for reminder in ReturnReminderSchedule.borrowerReturnReminders(returnAt: loan.returnAt) {
                 let body = reminder.suffix == "due" ? "\(loan.toolName) is due." : loan.toolName
                 let index = ["return-day", "return-hour", "due", "overdue", "grace-ended"].firstIndex(of: reminder.suffix) ?? 0
                 upcoming.append((ids[index + 1], reminder.title, body, reminder.fireAt))
             }
+            upcoming.append((ids[6], "Support escalation", "This case is eligible for support escalation and human review.", loan.returnAt.addingTimeInterval(NonReturnPolicy.escalationInterval)))
+        }
+        if isOwner && tracksReturn {
+            upcoming.append((ids[7], "Overdue grace period", "Both neighbors are notified. You can message each other or agree an extension.", loan.returnAt.addingTimeInterval(ReturnReminderSchedule.overdue)))
+            upcoming.append((ids[8], "Borrowing paused", "New borrowing is blocked while this loan stays unresolved.", loan.returnAt.addingTimeInterval(NonReturnPolicy.graceInterval)))
+            upcoming.append((ids[9], "Support escalation", "This case is eligible for support escalation and human review.", loan.returnAt.addingTimeInterval(NonReturnPolicy.escalationInterval)))
         }
         if canNotify {
             for item in upcoming {
                 await add(id: item.id, title: item.title, body: item.body, at: item.at)
             }
         }
-        let future = upcoming.filter { $0.at > Date() }
-        let next = future.min { $0.at < $1.at }
-            ?? upcoming.filter { $0.at > Date().addingTimeInterval(-7 * 86_400) }.max { $0.at < $1.at }
-        if let next, announced.insert(next.id).inserted {
-            await present(title: next.title, body: next.body)
+        if let notice = NonReturnPolicy.notice(for: loan, now: Date()), isBorrower || isOwner {
+            let stageID = "loan-\(loan.id)-stage-\(notice.status.rawValue)"
+            if announced.insert(stageID).inserted {
+                await present(title: notice.title, body: notice.message)
+            }
+        } else {
+            let future = upcoming.filter { $0.at > Date() }
+            let next = future.min { $0.at < $1.at }
+                ?? upcoming.filter { $0.at > Date().addingTimeInterval(-7 * 86_400) }.max { $0.at < $1.at }
+            if let next, announced.insert(next.id).inserted {
+                await present(title: next.title, body: next.body)
+            }
         }
     }
 

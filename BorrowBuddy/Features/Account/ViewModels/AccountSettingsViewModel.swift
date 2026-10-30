@@ -95,7 +95,7 @@ final class AccountSettingsViewModel: ObservableObject {
             try await operation()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = FriendlyError.clean(error.localizedDescription)
             return false
         }
     }

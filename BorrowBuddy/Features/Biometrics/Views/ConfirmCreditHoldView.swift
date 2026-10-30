@@ -28,7 +28,8 @@ struct ConfirmCreditHoldView: View {
 
             AccountSaveStatus(error: viewModel.errorMessage, success: nil)
 
-            Spacer()
+            ThemeClipart(name: "ClipartSafe", height: 180, label: "Neighbors confirming a borrow")
+            Spacer(minLength: 12)
 
             PrimaryButton(
                 title: viewModel.isLoading ? "Authorizing..." : "Authorize with Face ID",

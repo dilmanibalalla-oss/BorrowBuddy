@@ -55,9 +55,7 @@ struct CalendarView: View {
                         upcomingSection
                     }
                     if let errorMessage = model.errorMessage {
-                        Text(errorMessage)
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(AppTheme.coral)
+                        DismissingErrorText(message: errorMessage, size: 12.5)
                     }
                     if model.isLoading || isOpening {
                         ProgressView()
@@ -176,6 +174,9 @@ struct CalendarView: View {
                 .font(AppTheme.rounded(16, weight: .heavy))
                 .foregroundStyle(AppTheme.blue)
             if selectedEvents.isEmpty && !model.isLoading {
+                if model.events.isEmpty {
+                    ThemeClipart(name: "ClipartCalendar", height: 150, label: "A calendar and a neighbor with a ladder")
+                }
                 Text(model.events.isEmpty ? "No pickups or returns yet. They appear here when you borrow or lend a tool." : "Nothing scheduled this day.")
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.green)
