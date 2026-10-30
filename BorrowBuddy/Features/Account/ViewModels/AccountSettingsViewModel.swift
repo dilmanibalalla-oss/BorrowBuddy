@@ -41,7 +41,7 @@ final class AccountSettingsViewModel: ObservableObject {
             return false
         }
 
-        return await perform(allowConcurrent: false) {
+        return await perform(allowConcurrent: true) {
             try await repository.updateProfile(
                 displayName: trimmedName,
                 neighborhood: trimmedNeighborhood,

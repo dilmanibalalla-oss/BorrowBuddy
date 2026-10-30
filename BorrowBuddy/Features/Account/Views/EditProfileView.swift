@@ -9,43 +9,52 @@ import UIKit
 import UniformTypeIdentifiers
 
 struct EditProfileView: View {
-    var startingAccount: AccountSummary?
-    var onSaved: (AccountSummary) -> Void = { _ in }
+    var onSaved: (AccountSummary) -> Void
+    var onCancel: () -> Void
 
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var dependencies: AppDependencies
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = AccountSettingsViewModel()
-    @State private var displayName = ""
-    @State private var neighborhood = ""
-    @State private var phoneNumber = ""
+    @State private var displayName: String
+    @State private var neighborhood: String
+    @State private var phoneNumber: String
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var photoData: Data?
     @State private var photoError: String?
     @State private var changedPhoto = false
     @State private var photoTask: Task<Void, Never>?
     @State private var isSaving = false
-    @State private var didLoadFields = false
+    @State private var stickyError: String?
+
+    init(startingAccount: AccountSummary?, onSaved: @escaping (AccountSummary) -> Void, onCancel: @escaping () -> Void) {
+        self.onSaved = onSaved
+        self.onCancel = onCancel
+        let seededNeighborhood = (startingAccount?.neighborhood.isEmpty == false)
+            ? startingAccount?.neighborhood ?? ""
+            : startingAccount?.streetAddress ?? ""
+        _displayName = State(initialValue: startingAccount?.displayName ?? "")
+        _neighborhood = State(initialValue: seededNeighborhood)
+        _phoneNumber = State(initialValue: startingAccount?.phoneNumber ?? "")
+        _photoData = State(initialValue: startingAccount?.photoData)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     AccountSettingsHeader(title: "Edit Profile", subtitle: "Your neighborhood identity") {
-                        dismiss()
+                        onCancel()
                     }
                     avatar
                     AccountField(
                         title: "Full name",
                         icon: "person",
-                        isEditable: didLoadFields,
                         textContentType: .name,
                         text: $displayName
                     )
                     AccountField(
                         title: "Neighborhood",
                         icon: "mappin.circle",
-                        isEditable: didLoadFields,
                         textContentType: .addressCity,
                         text: $neighborhood
                     )
@@ -67,7 +76,12 @@ struct EditProfileView: View {
                         title: "Your account",
                         message: "Your phone number was confirmed when you joined and stays on your account. Your name and neighborhood are saved when you tap Save profile."
                     )
-                    AccountSaveStatus(error: photoError ?? viewModel.errorMessage, success: viewModel.successMessage)
+                    if let message = stickyError ?? photoError {
+                        Text(message)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(AppTheme.coral)
+                            .accessibilityLabel(message)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -75,7 +89,7 @@ struct EditProfileView: View {
 
             PrimaryButton(
                 title: isSaving ? "Saving..." : "Save profile",
-                enabled: !viewModel.isLoading && !isSaving && didLoadFields
+                enabled: !isSaving
             ) {
                 Task { await save() }
             }
@@ -85,15 +99,6 @@ struct EditProfileView: View {
         }
         .background(AppTheme.background)
         .navigationBarHidden(true)
-        .onAppear {
-            guard !didLoadFields, let startingAccount else { return }
-            displayName = startingAccount.displayName
-            neighborhood = startingAccount.neighborhood
-            phoneNumber = startingAccount.phoneNumber
-            photoData = startingAccount.photoData
-            didLoadFields = true
-        }
-        .task { await load() }
         .onChange(of: selectedPhoto) { _, selection in
             photoTask?.cancel()
             photoTask = Task { @MainActor in
@@ -143,34 +148,11 @@ struct EditProfileView: View {
         .padding(.vertical, 12)
     }
 
-    private func load() async {
-        let nameAtStart = displayName
-        let neighborhoodAtStart = neighborhood
-        await viewModel.loadProfile(using: dependencies.accountRepository)
-        guard displayName == nameAtStart, neighborhood == neighborhoodAtStart, !changedPhoto else { return }
-        guard let account = viewModel.account else {
-            didLoadFields = true
-            return
-        }
-        if nameAtStart.isEmpty || nameAtStart == "Neighbor" {
-            displayName = account.displayName
-        }
-        if neighborhoodAtStart.isEmpty {
-            neighborhood = account.neighborhood
-        }
-        if phoneNumber.isEmpty {
-            phoneNumber = account.phoneNumber
-        }
-        if photoData == nil {
-            photoData = account.photoData
-        }
-        didLoadFields = true
-    }
-
     private func save() async {
         guard !isSaving else { return }
         isSaving = true
         photoError = nil
+        stickyError = nil
         defer { isSaving = false }
 
         await photoTask?.value
@@ -183,7 +165,10 @@ struct EditProfileView: View {
             phoneNumber: phoneNumber,
             using: dependencies.accountRepository
         )
-        guard saved else { return }
+        guard saved else {
+            stickyError = viewModel.errorMessage ?? "Your profile could not be saved."
+            return
+        }
 
         if changedPhoto, let photoData {
             do {

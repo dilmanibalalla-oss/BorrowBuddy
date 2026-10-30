@@ -14,9 +14,27 @@ struct ProfileView: View {
     @State private var errorMessage: String?
     @State private var myListings: [BorrowingTool] = []
     @State private var profileOverride: AccountSummary?
+    @State private var isEditingProfile = false
     @AppStorage(AppTheme.darkModeKey) private var darkMode = false
 
     var body: some View {
+        if isEditingProfile {
+            EditProfileView(
+                startingAccount: shownAccount,
+                onSaved: { saved in
+                    profileOverride = saved
+                    dependencies.editedAccount = saved
+                    viewModel.apply(saved, cache: dependencies.offlineCache)
+                    isEditingProfile = false
+                },
+                onCancel: { isEditingProfile = false }
+            )
+        } else {
+            profileScreen
+        }
+    }
+
+    private var profileScreen: some View {
         VStack(spacing: 0) {
         NavigationStack(path: $path) {
             ScrollView(showsIndicators: false) {
@@ -42,14 +60,18 @@ struct ProfileView: View {
             .navigationDestination(for: AccountDestination.self) { destination in
                 switch destination {
                 case .editProfile:
-                    EditProfileView(startingAccount: shownAccount) { saved in
-                        profileOverride = saved
-                        dependencies.editedAccount = saved
-                        viewModel.apply(saved, cache: dependencies.offlineCache)
-                        if path.count > 0 {
-                            path.removeLast()
+                    EditProfileView(
+                        startingAccount: shownAccount,
+                        onSaved: { saved in
+                            profileOverride = saved
+                            dependencies.editedAccount = saved
+                            viewModel.apply(saved, cache: dependencies.offlineCache)
+                            if path.count > 0 { path.removeLast() }
+                        },
+                        onCancel: {
+                            if path.count > 0 { path.removeLast() }
                         }
-                    }
+                    )
                 case .notifications:
                     NotificationPreferencesView()
                 case .paymentMethods:
@@ -259,7 +281,26 @@ struct ProfileView: View {
                 .foregroundStyle(AppTheme.blue)
 
             VStack(spacing: 0) {
-                menuRow("Edit Profile", icon: "person", destination: .editProfile)
+                Button {
+                    isEditingProfile = true
+                } label: {
+                    HStack(spacing: 13) {
+                        Image(systemName: "person")
+                            .foregroundStyle(AppTheme.blue)
+                            .frame(width: 20)
+                        Text("Edit Profile")
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.text)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(AppTheme.border)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 48)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit Profile")
                 Divider()
                 menuRow("Wallet", icon: "creditcard.fill", destination: .wallet)
                 Divider()
